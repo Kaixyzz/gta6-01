@@ -1,102 +1,78 @@
-// Story missions for SOLARA BAY: four jobs in order, each with its reward.
-// The game module owns money and the player; this module owns the mission
-// state machine and the current objective marker.
-
-import { TURF, DROPOFF, PICKUP_POINT, DELIVERY_POINT, GOODS_POINT, SAFEHOUSE_POINT } from './city.js';
-import { dist } from './rng.js';
+// Story missions for SOLARA BAY v2: six jobs, side stashes, rewards, objectives.
+import { SPOTS } from './city.js';
 
 export const MISSIONS = [
-  { title: 'First Wheels', objective: 'Steal a car and drive to the drop-off.', reward: 300 },
-  { title: 'The Pickup', objective: 'Collect the package, then deliver it across town.', reward: 500 },
-  { title: 'Turfwars', objective: 'On foot: take the turf — defeat all 4 gang members.', reward: 800 },
-  { title: 'The Getaway', objective: 'Grab the goods, then escape the chase to the safehouse.', reward: 1500 },
+  {
+    id: 0, title: 'M1 — First Wheels', reward: 300,
+    objective: 'Steal a car and drive it to the drop-off',
+    marker: () => ({ x: SPOTS.dropoff.x, y: SPOTS.dropoff.y }),
+  },
+  {
+    id: 1, title: 'M2 — The Pickup', reward: 500,
+    objective: 'Collect the package, then deliver it',
+    marker: (stage) => stage === 0
+      ? { x: SPOTS.pickup.x, y: SPOTS.pickup.y }
+      : { x: SPOTS.delivery.x, y: SPOTS.delivery.y },
+  },
+  {
+    id: 2, title: 'M3 — Turfwars', reward: 800,
+    objective: 'Defeat 4 gang members at the turf (on foot)',
+    marker: () => ({ x: SPOTS.turf.x, y: SPOTS.turf.y }),
+  },
+  {
+    id: 3, title: 'M4 — The Getaway', reward: 1500,
+    objective: 'Grab the goods, then escape the chase to the safehouse',
+    marker: (stage) => stage === 0
+      ? { x: SPOTS.goods.x, y: SPOTS.goods.y }
+      : { x: SPOTS.safehouse.x, y: SPOTS.safehouse.y },
+  },
+  {
+    id: 4, title: 'M5 — The Score', reward: 800,
+    objective: 'Rob the bank vault, grab the cash, drive to the garage',
+    marker: (stage) => stage === 0
+      ? { x: SPOTS.bankVault.x, y: SPOTS.bankVault.y }
+      : stage === 1
+        ? { x: SPOTS.bankVault.x + 70, y: SPOTS.bankVault.y + 40 }
+        : { x: SPOTS.garage.x, y: SPOTS.garage.y },
+  },
+  {
+    id: 5, title: 'M6 — King of the Bay', reward: 1500,
+    objective: 'Steal the boss sports car, escape the biggest chase',
+    marker: (stage) => stage === 0
+      ? { x: SPOTS.marinaCar.x, y: SPOTS.marinaCar.y }
+      : { x: SPOTS.safehouse.x, y: SPOTS.safehouse.y },
+  },
 ];
 
-export function makeMissionState() {
-  return {
-    missionIndex: 0,
-    stage: 0,
-    kills: 0,
-    storyComplete: false,
-    marker: { ...DROPOFF },
-    gangSpawned: false,
-  };
+export const STASH_SPOTS = [
+  { x: SPOTS.beach.x, y: SPOTS.beach.y, label: 'Beach stash' },
+  { x: SPOTS.park.x, y: SPOTS.park.y, label: 'Park stash' },
+  { x: SPOTS.marina.x, y: SPOTS.marina.y, label: 'Marina stash' },
+];
+
+export function missionMarker(missionIndex, stage) {
+  const m = MISSIONS[missionIndex];
+  return m ? m.marker(stage) : null;
 }
 
-export function markerFor(m) {
-  if (m.missionIndex === 0) return { ...DROPOFF };
-  if (m.missionIndex === 1) return m.stage === 0 ? { ...PICKUP_POINT } : { ...DELIVERY_POINT };
-  if (m.missionIndex === 2) return { ...TURF };
-  return m.stage === 0 ? { ...GOODS_POINT } : { ...SAFEHOUSE_POINT };
+export function missionTitle(missionIndex) {
+  const m = MISSIONS[missionIndex];
+  return m ? m.title : 'Story Complete';
 }
 
-// Called every tick with the live game facts. Returns an event string when a
-// mission step completes ('m1', 'm2-pickup', 'm2', 'm3-spawn', 'm3',
-// 'm4-goods', 'm4') or null.
-export function updateMissions(m, g) {
-  if (m.storyComplete) return null;
-  const reach = (p, r) => dist(g.px, g.py, p.x, p.y) <= r;
-
-  if (m.missionIndex === 0) {
-    if (g.inCar && reach(DROPOFF, 85)) {
-      m.missionIndex = 1;
-      m.stage = 0;
-      m.marker = { ...PICKUP_POINT };
-      return 'm1';
-    }
-    return null;
-  }
-  if (m.missionIndex === 1) {
-    if (m.stage === 0 && reach(PICKUP_POINT, 75)) {
-      m.stage = 1;
-      m.marker = { ...DELIVERY_POINT };
-      return 'm2-pickup';
-    }
-    if (m.stage === 1 && reach(DELIVERY_POINT, 75)) {
-      m.missionIndex = 2;
-      m.stage = 0;
-      m.marker = { ...TURF };
-      return 'm2';
-    }
-    return null;
-  }
-  if (m.missionIndex === 2) {
-    if (!m.gangSpawned && !g.inCar && dist(g.px, g.py, TURF.x, TURF.y) <= 320) {
-      m.gangSpawned = true;
-      m.stage = 1;
-      return 'm3-spawn';
-    }
-    if (m.gangSpawned && m.kills >= 4) {
-      m.missionIndex = 3;
-      m.stage = 0;
-      m.marker = { ...GOODS_POINT };
-      return 'm3';
-    }
-    return null;
-  }
-  // Mission 4.
-  if (m.stage === 0 && reach(GOODS_POINT, 75)) {
-    m.stage = 1;
-    m.marker = { ...SAFEHOUSE_POINT };
-    return 'm4-goods';
-  }
-  if (m.stage === 1 && reach(SAFEHOUSE_POINT, 85)) {
-    m.storyComplete = true;
-    return 'm4';
-  }
-  return null;
-}
-
-export function missionCard(m) {
-  const i = Math.min(m.missionIndex, 3);
-  const def = MISSIONS[i];
-  let objective = def.objective;
-  if (m.missionIndex === 1 && m.stage === 1) objective = 'Package collected — deliver it to the east side.';
-  if (m.missionIndex === 2 && m.gangSpawned) objective = `Take the turf — gang members left: ${Math.max(0, 4 - m.kills)}.`;
-  if (m.missionIndex === 3 && m.stage === 1) objective = 'The whole Bay PD is on you — reach the safehouse!';
-  return {
-    title: `Mission ${i + 1}/4 — ${def.title}`,
-    objective,
-    reward: `$${def.reward}`,
-  };
+export function missionObjective(missionIndex, stage, kills, killsNeeded) {
+  const m = MISSIONS[missionIndex];
+  if (!m) return 'You are the King of the Bay.';
+  if (missionIndex === 2) return `Defeat the gang: ${kills}/${killsNeeded} down`;
+  if (missionIndex === 4 && stage === 0) return `Defeat the guards: ${kills}/${killsNeeded} down`;
+  if (missionIndex === 4 && stage === 1) return 'Grab the cash from the vault';
+  if (missionIndex === 4 && stage === 2) return 'Drive the getaway car to the garage (wanted 2★)';
+  if (missionIndex === 3 && stage === 1) return 'Escape the police — reach the safehouse!';
+  if (missionIndex === 5 && stage === 1) return 'Escape the biggest chase — reach the safehouse!';
+  if (missionIndex === 0) return 'Steal a car (E) and drive to the drop-off';
+  if (missionIndex === 1 && stage === 0) return 'Drive to the pickup point';
+  if (missionIndex === 1 && stage === 1) return 'Deliver the package';
+  if (missionIndex === 3 && stage === 0) return 'Drive to the goods pickup';
+  if (missionIndex === 5 && stage === 0) return 'Steal the boss sports car at the marina';
+  return m.objective;
 }
