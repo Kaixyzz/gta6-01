@@ -1,7 +1,5 @@
-// rng.js — a small deterministic seeded random generator (mulberry32).
-// The city and every spawn in SOLARA BAY come from fixed seeds, so the world
-// is identical on every run and gameplay randomness is reproducible.
-
+// Seeded random numbers for SOLARA BAY: one tiny generator, one fixed world seed,
+// so the city, the traffic and the pedestrians are the same on every load.
 export function mulberry32(seed) {
   let a = seed >>> 0;
   return function next() {
@@ -13,37 +11,35 @@ export function mulberry32(seed) {
   };
 }
 
-export class Rng {
-  constructor(seed) {
-    this.next = mulberry32(seed);
-  }
-  float() {
-    return this.next();
-  }
-  // Float in [min, max).
-  range(min, max) {
-    return min + this.next() * (max - min);
-  }
-  // Integer in [min, max] inclusive.
-  int(min, max) {
-    return Math.floor(this.range(min, max + 1));
-  }
-  // True with probability p.
-  chance(p) {
-    return this.next() < p;
-  }
-  pick(list) {
-    return list[Math.floor(this.next() * list.length)];
-  }
-  // Fisher-Yates shuffle, returns a new array.
-  shuffle(list) {
-    const out = list.slice();
-    for (let i = out.length - 1; i > 0; i--) {
-      const j = Math.floor(this.next() * (i + 1));
-      const tmp = out[i];
-      out[i] = out[j];
-      out[j] = tmp;
-    }
-    return out;
-  }
+export function makeRng(seed) {
+  const next = mulberry32(seed);
+  return {
+    next,
+    range(min, max) {
+      return min + next() * (max - min);
+    },
+    int(min, max) {
+      return Math.floor(min + next() * (max - min + 1));
+    },
+    pick(list) {
+      return list[Math.floor(next() * list.length)];
+    },
+    chance(p) {
+      return next() < p;
+    },
+  };
+}
+
+export function clamp(v, lo, hi) {
+  return v < lo ? lo : v > hi ? hi : v;
+}
+
+export function normAngle(a) {
+  while (a > Math.PI) a -= Math.PI * 2;
+  while (a < -Math.PI) a += Math.PI * 2;
+  return a;
+}
+
+export function dist(ax, ay, bx, by) {
+  return Math.hypot(ax - bx, ay - by);
 }
