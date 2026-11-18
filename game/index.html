@@ -4,99 +4,77 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SOLARA BAY — Streets of the Bay</title>
-<link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR4nGPQO1NIEmIY1TCqYfhqAAC4lWsQZT4iGQAAAABJRU5ErkJggg==">
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #14181f; font-family: system-ui, sans-serif; overflow: hidden; }
-  #wrap { position: relative; width: 1280px; height: 720px; margin: 0 auto; }
-  #game { display: block; width: 1280px; height: 720px; background: #7fb069; }
-  .hud { position: absolute; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.7); pointer-events: none; z-index: 5; }
-  #hud-left { top: 12px; left: 14px; font-size: 20px; font-weight: 700; }
-  #hud-hp-bar { width: 170px; height: 12px; background: rgba(0,0,0,0.45); border-radius: 6px; margin-top: 6px; overflow: hidden; }
-  #hud-hp-fill { height: 100%; width: 100%; background: #7ee787; border-radius: 6px; }
-  #hud-ammo { font-size: 15px; margin-top: 5px; font-weight: 600; }
-  #mission-card { top: 12px; left: 50%; transform: translateX(-50%); width: 430px; text-align: center;
-    background: rgba(0,0,0,0.5); border-radius: 10px; padding: 9px 14px; }
-  #mission-title { font-size: 19px; font-weight: 800; letter-spacing: 0.5px; }
-  #mission-obj { font-size: 14px; margin-top: 3px; color: #ffe9a8; }
-  #mission-reward { font-size: 13px; margin-top: 2px; color: #9fd8ff; font-weight: 600; }
-  #hud-stars { top: 12px; right: 16px; font-size: 30px; letter-spacing: 4px; }
-  #minimap { position: absolute; right: 14px; bottom: 14px; width: 200px; height: 150px;
-    border: 2px solid rgba(255,255,255,0.75); border-radius: 8px; background: #20242c; z-index: 5; }
-  #hint { left: 14px; bottom: 12px; font-size: 12.5px; color: rgba(255,255,255,0.85); }
-  .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
-    justify-content: center; background: rgba(10,14,20,0.72); color: #fff; z-index: 10; text-align: center; }
-  .overlay h1 { font-size: 46px; letter-spacing: 2px; }
-  .overlay h2 { font-size: 30px; }
-  .overlay p { font-size: 16px; margin: 10px 0 4px; color: #d7dee8; max-width: 560px; line-height: 1.5; }
-  .overlay .sub { font-size: 14px; color: #9fb3c8; margin-top: 14px; line-height: 1.7; }
-  .overlay button { pointer-events: auto; margin-top: 18px; padding: 12px 30px; font-size: 18px; font-weight: 700;
-    border: none; border-radius: 9px; background: #2ecc71; color: #06281a; cursor: pointer; }
-  .overlay button.secondary { background: #334155; color: #e2e8f0; }
-  .overlay button:hover { filter: brightness(1.1); }
-  #overlay-card { position: absolute; top: 108px; left: 50%; transform: translateX(-50%); z-index: 8;
-    background: rgba(0,0,0,0.62); border: 1px solid rgba(255,213,74,0.8); border-radius: 10px;
-    padding: 10px 22px; text-align: center; color: #fff; pointer-events: none; }
-  #card-title { font-size: 19px; font-weight: 800; color: #ffd54a; }
-  #card-body { font-size: 14px; margin-top: 3px; color: #e8e8e8; }
-  .hidden { display: none !important; }
-</style>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20fill%3D%22%23f2a541%22%2F%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2216%22%20r%3D%2210%22%20fill%3D%22%231b6ca8%22%2F%3E%3Ctext%20x%3D%2216%22%20y%3D%2222%22%20font-size%3D%2216%22%20text-anchor%3D%22middle%22%20fill%3D%22%23fff%22%3ES%3C%2Ftext%3E%3C%2Fsvg%3E">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div id="wrap">
   <canvas id="game" width="1280" height="720"></canvas>
-  <div class="hud" id="hud-left">
-    <div id="hud-money">$50</div>
-    <div id="hud-hp-bar"><div id="hud-hp-fill"></div></div>
-    <div id="hud-ammo">Ammo 12</div>
-  </div>
-  <div class="hud" id="mission-card">
-    <div id="mission-title">First Wheels</div>
-    <div id="mission-obj">Steal a car — walk up to one and press E</div>
-    <div id="mission-reward">Reward $300</div>
-  </div>
-  <div class="hud" id="hud-stars">☆☆☆</div>
-  <canvas id="minimap" width="200" height="150"></canvas>
-  <div class="hud" id="hint">WASD move &amp; drive · E enter / exit car · Mouse aim, click to shoot · Shift run · P pause</div>
 
-  <div class="overlay hidden" id="overlay-card">
-    <div id="card-title"></div>
-    <div id="card-body"></div>
+  <div id="hud" class="hidden">
+    <div id="hud-left">
+      <span id="hud-money">$50</span>
+      <span id="hud-hp"><span id="hud-hp-fill"></span><span id="hud-hp-text">100</span></span>
+      <span id="hud-ammo">AMMO 24</span>
+      <span id="hud-stars"></span>
+    </div>
+    <div id="hud-right">SOLARA BAY</div>
   </div>
 
-  <div class="overlay" id="overlay-start">
-    <h1>SOLARA BAY</h1>
-    <p>Streets of the Bay — a small-time driver works their way up: steal cars, outrun the police, and finish four story missions across a sun-soaked coastal city.</p>
-    <p class="sub">WASD / arrows — move and drive &nbsp;·&nbsp; E — enter / exit a car<br>Mouse — aim, click — shoot &nbsp;·&nbsp; Shift — run &nbsp;·&nbsp; P — pause &amp; save</p>
-    <button id="btn-start">Start</button>
-    <button id="btn-continue" class="secondary hidden">Continue</button>
+  <div id="mission-card" class="hidden">
+    <div id="mc-title">First Wheels</div>
+    <div id="mc-objective">Steal a car and drive it to the drop-off.</div>
+    <div id="mc-reward">Reward $300</div>
   </div>
 
-  <div class="overlay hidden" id="overlay-pause">
-    <h2>Paused</h2>
-    <p>Your progress is saved when you pause.</p>
-    <button id="btn-resume">Resume</button>
-    <button id="btn-save" class="secondary">Save now</button>
+  <div id="hint" class="hidden">WASD move / drive &nbsp;·&nbsp; E enter car &nbsp;·&nbsp; Mouse + click shoot &nbsp;·&nbsp; P pause &nbsp;·&nbsp; M mute</div>
+
+  <div id="toast" class="hidden"></div>
+
+  <div id="overlay-start" class="overlay">
+    <div class="panel">
+      <h1>SOLARA BAY</h1>
+      <p class="sub">Streets of the Bay — a small-time driver works their way up.</p>
+      <p class="controls">WASD — walk / drive &nbsp;·&nbsp; E — enter / exit car<br>
+      Mouse — aim &nbsp;·&nbsp; Click — shoot &nbsp;·&nbsp; P — pause &nbsp;·&nbsp; M — mute</p>
+      <p class="story">Four jobs. First Wheels, The Pickup, Turfwars, The Getaway.
+      Steal cars, dodge the police, and finish the story.</p>
+      <button id="btn-start">Start game</button>
+      <button id="btn-continue" class="hidden">Continue</button>
+    </div>
   </div>
 
-  <div class="overlay hidden" id="overlay-end">
-    <h2 id="end-title">Story Complete</h2>
-    <p id="end-body">You ran Solara Bay. All four missions done — $3,150 banked.</p>
-    <button id="btn-again">Play again</button>
+  <div id="overlay-pause" class="overlay hidden">
+    <div class="panel">
+      <h1>Paused</h1>
+      <p class="sub">Take a breath. The bay waits.</p>
+      <button id="btn-resume">Resume</button>
+    </div>
   </div>
 
-  <div class="overlay hidden" id="overlay-busted">
-    <h2>BUSTED</h2>
-    <p>The police caught you. You lose $100 and wake up at the garage.</p>
-    <button id="btn-busted-ok">Back on the streets</button>
+  <div id="overlay-end" class="overlay hidden">
+    <div class="panel">
+      <h1>Story Complete</h1>
+      <p class="sub">All four jobs done. You own the bay now.</p>
+      <p id="end-stats" class="story"></p>
+      <button id="btn-again">Play again</button>
+    </div>
   </div>
 
-  <div class="overlay hidden" id="overlay-wasted">
-    <h2>WASTED</h2>
-    <p>You went down. You lose $100 and wake up at the garage.</p>
-    <button id="btn-wasted-ok">Back on the streets</button>
+  <div id="overlay-dead" class="overlay hidden">
+    <div class="panel">
+      <h1 id="dead-title">Wasted</h1>
+      <p class="sub">The bay is not done with you yet.</p>
+      <button id="btn-retry">Try again</button>
+    </div>
   </div>
 </div>
-<script type="module" src="./src/boot.js"></script>
+<script src="js/rng.js"></script>
+<script src="js/city.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/entities.js"></script>
+<script src="js/missions.js"></script>
+<script src="js/render.js"></script>
+<script src="js/game.js"></script>
 </body>
 </html>
