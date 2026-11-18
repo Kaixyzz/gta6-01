@@ -1,10 +1,14 @@
-// Milo "Vex" Raines on foot: movement, entering/exiting cars, damage.
+// Milo "Vex" Raines on foot: walking, getting in and out of cars, and
+// taking damage. Entering and exiting both run through the E key, and
+// the exit branch is the only place E is read while driving — so one
+// press can never exit and re-enter in the same frame.
 import { CFG } from './config.js';
 import { collideCircle, dist } from './city.js';
 
 export function makePlayer(spawn) {
   return {
-    x: spawn.x, y: spawn.y,
+    x: spawn.x,
+    y: spawn.y,
     angle: -Math.PI / 2,
     hp: CFG.PLAYER_HP,
     money: CFG.START_MONEY,
@@ -20,8 +24,7 @@ export function updatePlayer(G, dt) {
   const p = G.player;
   const input = G.input;
   if (p.shootCd > 0) p.shootCd -= dt;
-  // In a car, E exits — handled here alone, so one press is exactly one
-  // action and can never exit and re-enter in the same frame.
+  // Driving: E gets out. This branch alone handles E while in a car.
   if (p.inCar) {
     if (input.wasPressed('KeyE')) exitCar(G);
     return;
@@ -37,7 +40,7 @@ export function updatePlayer(G, dt) {
     p.angle = Math.atan2(a.y, a.x);
     collideCircle(G.city, p, 16);
   }
-  // Enter the nearest car with E.
+  // E gets into the nearest car.
   if (input.wasPressed('KeyE')) {
     const car = nearestCar(G, p.x, p.y, 78);
     if (car && !car.isTraffic) enterCar(G, car);
@@ -45,14 +48,21 @@ export function updatePlayer(G, dt) {
 }
 
 export function nearestCar(G, x, y, maxD) {
-  let best = null, bd = maxD;
+  let best = null;
+  let bd = maxD;
   for (const c of G.parked) {
     const d = dist(x, y, c.x, c.y);
-    if (d < bd) { bd = d; best = c; }
+    if (d < bd) {
+      bd = d;
+      best = c;
+    }
   }
   for (const c of G.traffic) {
     const d = dist(x, y, c.x, c.y);
-    if (d < bd && Math.abs(c.speed) < 40) { bd = d; best = c; }
+    if (d < bd && Math.abs(c.speed) < 40) {
+      bd = d;
+      best = c;
+    }
   }
   return best;
 }
@@ -70,10 +80,8 @@ export function enterCar(G, car) {
   if (ti >= 0) G.traffic.splice(ti, 1);
   G.audio.engineStart();
   if (car.gold) G.missions.onEnterGold(G);
-  // Stealing a car in view of the law is a crime.
-  if (car.owned) {
-    if (policeNearby(G, 650)) G.police.addWanted(G, 1);
-  }
+  // Stealing a car in front of the law is a crime.
+  if (car.owned && policeNearby(G, 650)) G.police.addWanted(1);
 }
 
 export function exitCar(G) {
@@ -82,8 +90,8 @@ export function exitCar(G) {
   const car = p.car;
   car.driver = null;
   car.speed = 0;
-  // The car stays where it is and becomes parked again, so it can be
-  // found and re-entered later instead of vanishing from the world.
+  // The car stays where it stopped and becomes parked again, so it can
+  // be found and climbed back into instead of vanishing from the world.
   car.parked = true;
   G.parked.push(car);
   p.x = car.x + Math.cos(car.angle + Math.PI / 2) * 44;
@@ -95,8 +103,12 @@ export function exitCar(G) {
 }
 
 function policeNearby(G, range) {
-  for (const c of G.cops) if (dist(G.player.x, G.player.y, c.x, c.y) < range) return true;
-  for (const c of G.patrols) if (dist(G.player.x, G.player.y, c.x, c.y) < range) return true;
+  for (const c of G.cops) {
+    if (dist(G.player.x, G.player.y, c.x, c.y) < range) return true;
+  }
+  for (const c of G.patrols) {
+    if (dist(G.player.x, G.player.y, c.x, c.y) < range) return true;
+  }
   return false;
 }
 

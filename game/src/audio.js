@@ -1,6 +1,7 @@
-// All sound is synthesized with WebAudio — no audio files, no network.
-// Every call is safe when there is no audio device (headless): ensure()
-// catches the failure and the rest becomes a no-op.
+// Every sound in Solara Bay is synthesized with WebAudio — no audio
+// files, no network. All entry points are safe when there is no audio
+// device (headless browsers): ensure() catches the failure and the rest
+// of the calls become silent no-ops.
 export function makeAudio() {
   const audio = {
     ctx: null,
@@ -12,6 +13,7 @@ export function makeAudio() {
     sirenHigh: false,
     musicTimer: null,
     musicStep: 0,
+
     ensure() {
       if (!audio.ctx) {
         try {
@@ -21,16 +23,18 @@ export function makeAudio() {
           audio.master.gain.value = audio.muted ? 0 : 0.5;
           audio.master.connect(audio.ctx.destination);
         } catch (e) {
-          /* headless / no audio device: stay silent */
+          // headless / no audio device: stay silent
         }
       }
       if (audio.ctx && audio.ctx.state === 'suspended') audio.ctx.resume();
       return !!audio.ctx;
     },
+
     setMuted(m) {
       audio.muted = m;
       if (audio.master) audio.master.gain.value = m ? 0 : 0.5;
     },
+
     blip(freq, dur, type, vol, slideTo) {
       if (!audio.ensure() || audio.muted) return;
       const t = audio.ctx.currentTime;
@@ -46,6 +50,7 @@ export function makeAudio() {
       o.start(t);
       o.stop(t + dur + 0.02);
     },
+
     noise(dur, vol, freq) {
       if (!audio.ensure() || audio.muted) return;
       const t = audio.ctx.currentTime;
@@ -65,26 +70,33 @@ export function makeAudio() {
       g.connect(audio.master);
       src.start(t);
     },
+
     shoot() {
       audio.noise(0.12, 0.3, 2400);
       audio.blip(180, 0.09, 'square', 0.12, 60);
     },
+
     enemyShoot() {
       audio.blip(140, 0.08, 'square', 0.07, 70);
     },
+
     pickup() {
       audio.blip(660, 0.1, 'sine', 0.18);
       setTimeout(() => audio.blip(990, 0.14, 'sine', 0.18), 90);
     },
+
     missionDone() {
       [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => audio.blip(f, 0.16, 'sine', 0.2), i * 110));
     },
+
     busted() {
       audio.blip(220, 0.5, 'sawtooth', 0.2, 55);
     },
+
     click() {
       audio.blip(880, 0.05, 'sine', 0.12);
     },
+
     engineStart() {
       if (!audio.ensure() || audio.engineOsc) return;
       const o = audio.ctx.createOscillator();
@@ -98,21 +110,24 @@ export function makeAudio() {
       audio.engineOsc = o;
       audio.engineGain = g;
     },
+
     engineSet(speedFrac) {
       if (!audio.engineOsc) return;
       audio.engineOsc.frequency.value = 55 + speedFrac * 130;
       audio.engineGain.gain.value = audio.muted ? 0 : 0.05 + speedFrac * 0.05;
     },
+
     engineStop() {
       if (!audio.engineOsc) return;
       try {
         audio.engineOsc.stop();
       } catch (e) {
-        /* already stopped */
+        // already stopped
       }
       audio.engineOsc = null;
       audio.engineGain = null;
     },
+
     sirenTick(dt) {
       if (!audio.ensure()) return;
       audio.sirenTimer -= dt;
@@ -122,9 +137,10 @@ export function makeAudio() {
         audio.blip(audio.sirenHigh ? 920 : 680, 0.38, 'sine', 0.05);
       }
     },
+
     musicStart() {
       if (audio.musicTimer || !audio.ensure()) return;
-      // Simple chiptune: A-minor bass + sparse lead, 16 steps per bar.
+      // A small chiptune: A-minor bass with a sparse lead, 16 steps a bar.
       const bass = [110, 0, 110, 0, 130.8, 0, 98, 0, 110, 0, 110, 0, 164.8, 0, 146.8, 0];
       const lead = [440, 0, 523, 659, 0, 523, 440, 0, 392, 0, 440, 523, 0, 659, 587, 0];
       audio.musicTimer = setInterval(() => {
@@ -135,6 +151,7 @@ export function makeAudio() {
         audio.musicStep++;
       }, 210);
     },
+
     musicStop() {
       if (audio.musicTimer) {
         clearInterval(audio.musicTimer);

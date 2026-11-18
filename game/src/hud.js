@@ -1,17 +1,30 @@
-// DOM HUD: health bar, money, ammo, wanted stars, objective card, toasts,
-// plus the menu, pause, end and win overlays.
+// The DOM HUD: health bar, money, ammo, wanted stars, the objective
+// card and toasts, plus the menu, pause, end and win overlays.
 export function makeHud() {
   const byId = (id) => document.getElementById(id);
   const hud = {
     el: {
-      hp: byId('hp-fill'), money: byId('money'), ammo: byId('ammo'), stars: byId('stars'),
-      objective: byId('objective-text'), mission: byId('mission-name'), toast: byId('toast'),
-      menu: byId('menu'), pause: byId('pause'), end: byId('end'), win: byId('win'),
-      endTitle: byId('end-title'), endText: byId('end-text'),
-      btnStart: byId('btn-start'), btnContinue: byId('btn-continue'),
-      btnResume: byId('btn-resume'), btnRetry: byId('btn-retry'),
-      btnWinContinue: byId('btn-win-continue'), btnMute: byId('btn-mute'),
+      hp: byId('hp-fill'),
+      money: byId('money'),
+      ammo: byId('ammo'),
+      stars: byId('stars'),
+      objective: byId('objective-text'),
+      mission: byId('mission-name'),
+      toast: byId('toast'),
+      menu: byId('menu'),
+      pause: byId('pause'),
+      end: byId('end'),
+      win: byId('win'),
+      endTitle: byId('end-title'),
+      endText: byId('end-text'),
+      btnStart: byId('btn-start'),
+      btnContinue: byId('btn-continue'),
+      btnResume: byId('btn-resume'),
+      btnRetry: byId('btn-retry'),
+      btnWinContinue: byId('btn-win-continue'),
+      btnMute: byId('btn-mute'),
     },
+
     update(G) {
       const p = G.player;
       hud.el.hp.style.width = `${Math.max(0, p.hp)}%`;
@@ -31,6 +44,7 @@ export function makeHud() {
         hud.el.toast.style.opacity = '0';
       }
     },
+
     showMenu(hasSave) {
       hud.el.menu.style.display = 'flex';
       hud.el.pause.style.display = 'none';
@@ -38,8 +52,15 @@ export function makeHud() {
       hud.el.win.style.display = 'none';
       hud.el.btnContinue.style.display = hasSave ? 'inline-block' : 'none';
     },
-    hideMenu() { hud.el.menu.style.display = 'none'; },
-    showPause(show) { hud.el.pause.style.display = show ? 'flex' : 'none'; },
+
+    hideMenu() {
+      hud.el.menu.style.display = 'none';
+    },
+
+    showPause(show) {
+      hud.el.pause.style.display = show ? 'flex' : 'none';
+    },
+
     showEnd(kind) {
       hud.el.end.style.display = 'flex';
       if (kind === 'busted') {
@@ -50,10 +71,22 @@ export function makeHud() {
         hud.el.endText.textContent = 'You went down in Solara Bay. You lose 20% of your cash — patched up at the hospital.';
       }
     },
-    hideEnd() { hud.el.end.style.display = 'none'; },
-    showWin() { hud.el.win.style.display = 'flex'; },
-    hideWin() { hud.el.win.style.display = 'none'; },
-    setMute(muted) { hud.el.btnMute.textContent = muted ? '🔇 Muted' : '🔊 Sound'; },
+
+    hideEnd() {
+      hud.el.end.style.display = 'none';
+    },
+
+    showWin() {
+      hud.el.win.style.display = 'flex';
+    },
+
+    hideWin() {
+      hud.el.win.style.display = 'none';
+    },
+
+    setMute(muted) {
+      hud.el.btnMute.textContent = muted ? '🔇 Muted' : '🔊 Sound';
+    },
   };
   return hud;
 }

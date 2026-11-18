@@ -1,4 +1,5 @@
-// Cars: types, arcade driving physics, parked-car spawning.
+// Cars: their types, arcade driving physics, and the parked cars that
+// dot the city — including the gold sport car for mission two.
 import { CFG } from './config.js';
 import { collideCircle } from './city.js';
 import { rand, pick } from './rng.js';
@@ -16,11 +17,17 @@ export function makeCar(type, x, y, angle, opts) {
   const o = opts || {};
   return {
     type,
-    x, y, angle,
+    x,
+    y,
+    angle,
     speed: 0,
-    w: t.w, h: t.h,
+    w: t.w,
+    h: t.h,
     color: o.color || pick(o.rng, t.colors),
-    maxSpeed: t.max, accel: t.accel, reverse: t.reverse, turnRate: t.turn,
+    maxSpeed: t.max,
+    accel: t.accel,
+    reverse: t.reverse,
+    turnRate: t.turn,
     parked: !!o.parked,
     owned: !!o.owned,
     gold: !!o.gold,
@@ -35,10 +42,10 @@ export function makeCar(type, x, y, angle, opts) {
   };
 }
 
-// Arcade driving: throttle accelerates, steering grows with speed but eases
-// off at the top end so the car is not twitchy at full throttle. Movement
-// is axis-separated — X first, then Y — so the car slides along walls and
-// never wedges itself into a map corner.
+// Arcade driving. Throttle accelerates, steering grows with speed but
+// eases off at the top end so the car is not twitchy flat out. Movement
+// is axis-separated — X first, then Y — so the car slides along walls
+// instead of wedging itself into a map corner.
 export function driveCar(G, car, throttle, steer, dt) {
   const t = CAR_TYPES[car.type];
   if (throttle > 0) {
@@ -58,7 +65,8 @@ export function driveCar(G, car, throttle, steer, dt) {
   }
   const nx = car.x + Math.cos(car.angle) * car.speed * dt;
   const ny = car.y + Math.sin(car.angle) * car.speed * dt;
-  const beforeX = car.x, beforeY = car.y;
+  const beforeX = car.x;
+  const beforeY = car.y;
   car.x = nx;
   if (collideCircle(G.city, car, 20)) {
     car.x = beforeX;
@@ -73,7 +81,7 @@ export function driveCar(G, car, throttle, steer, dt) {
   car.y = Math.max(20, Math.min(CFG.WORLD_H - 20, car.y));
 }
 
-// Parked cars near intersections, plus the gold sport car for mission 2.
+// Parked cars near intersections, plus the gold sport car for mission two.
 export function spawnParked(G) {
   const rng = G.rng;
   const spots = [];
@@ -96,7 +104,11 @@ export function spawnParked(G) {
   }
   // The gold sport car — parked on open road, clearly marked.
   const gold = makeCar('sport', G.city.goldSpot.x + 62, G.city.goldSpot.y, 0, {
-    parked: true, owned: true, gold: true, color: '#ffd700', rng,
+    parked: true,
+    owned: true,
+    gold: true,
+    color: '#ffd700',
+    rng,
   });
   G.parked.push(gold);
   G.goldCar = gold;

@@ -1,4 +1,5 @@
-// SOLARA BAY — Streets of the Bay. Game loop, states, staging presets.
+// SOLARA BAY — Streets of the Bay. The game loop, the run states, and
+// the staging presets used for screenshots.
 import { CFG } from './config.js';
 import { makeRng } from './rng.js';
 import { makeInput } from './input.js';
@@ -57,11 +58,20 @@ const G = {
 function initWorld() {
   G.city = buildCity(G.rng);
   G.player = makePlayer(G.city.spawn);
-  G.parked = []; G.traffic = []; G.peds = [];
-  G.cops = []; G.patrols = [];
-  G.bullets = []; G.ebullets = []; G.enemies = [];
-  G.pickups = []; G.particles = [];
-  G.wanted = 0; G.quietT = 0; G.lastCrimeT = 0; G.lastShot = null;
+  G.parked = [];
+  G.traffic = [];
+  G.peds = [];
+  G.cops = [];
+  G.patrols = [];
+  G.bullets = [];
+  G.ebullets = [];
+  G.enemies = [];
+  G.pickups = [];
+  G.particles = [];
+  G.wanted = 0;
+  G.quietT = 0;
+  G.lastCrimeT = 0;
+  G.lastShot = null;
   G.storyComplete = false;
   G.police = makePolice(G);
   G.missions = makeMissions(G);
@@ -90,7 +100,7 @@ G.retry = function () {
   const p = G.player;
   p.hp = CFG.PLAYER_HP;
   if (p.inCar && p.car) {
-    // Leave the car behind as a parked car, so it stays in the world.
+    // The car is left behind as a parked car, so it stays in the world.
     p.car.driver = null;
     p.car.speed = 0;
     p.car.parked = true;
@@ -98,11 +108,14 @@ G.retry = function () {
     p.inCar = false;
     p.car = null;
   }
-  p.x = G.city.hospital.x; p.y = G.city.hospital.y;
+  p.x = G.city.hospital.x;
+  p.y = G.city.hospital.y;
   p.ammo = Math.max(p.ammo, 6);
   G.wanted = 0;
-  G.cops = []; G.patrols = [];
-  G.bullets = []; G.ebullets = [];
+  G.cops = [];
+  G.patrols = [];
+  G.bullets = [];
+  G.ebullets = [];
   G.hud.hideEnd();
   G.state = 'playing';
   G.audio.musicStart();
@@ -118,7 +131,8 @@ function startGame(useSave) {
     G.player.money = saved.money;
     G.player.hp = saved.hp;
     G.player.ammo = saved.ammo;
-    G.player.x = saved.x; G.player.y = saved.y;
+    G.player.x = saved.x;
+    G.player.y = saved.y;
     G.storyComplete = !!saved.storyComplete;
     if (G.storyComplete) G.missions.start(4);
     else if (saved.missionIndex < 4) G.missions.start(saved.missionIndex);
@@ -133,26 +147,35 @@ function startGame(useSave) {
   applyShot(new URLSearchParams(location.search).get('shot'));
 }
 
-// Staging presets for screenshots: put the game in a photogenic state.
-// The chase preset must show the wanted level AND police on screen: wanted
-// is set directly, two patrol cars are placed in clear view (one ahead, one
-// behind the player's car) and two foot officers stand nearby.
+// Staging presets for screenshots: put the game into a photogenic state.
+// The chase preset has to show the wanted level AND police on screen, so
+// it sets wanted directly, parks two patrol cars in clear view (one ahead,
+// one behind the player's car) and posts two foot officers nearby.
 function applyShot(shot) {
   if (!shot) return;
   const p = G.player;
   if (shot === 'walk') {
-    p.x = 1100; p.y = 1100;
+    p.x = 1100;
+    p.y = 1100;
   } else if (shot === 'drive') {
     const car = makeCar('sport', 1800, 1800, 0, { rng: G.rng });
     G.parked.push(car);
-    p.x = car.x; p.y = car.y;
-    p.inCar = true; p.car = car; car.driver = 'player'; car.parked = false;
+    p.x = car.x;
+    p.y = car.y;
+    p.inCar = true;
+    p.car = car;
+    car.driver = 'player';
+    car.parked = false;
     car.speed = 320;
   } else if (shot === 'chase') {
     const car = makeCar('sedan', 1800, 1100, 0, { rng: G.rng });
     G.parked.push(car);
-    p.x = car.x; p.y = car.y;
-    p.inCar = true; p.car = car; car.driver = 'player'; car.parked = false;
+    p.x = car.x;
+    p.y = car.y;
+    p.inCar = true;
+    p.car = car;
+    car.driver = 'player';
+    car.parked = false;
     car.speed = 380;
     G.wanted = 3;
     G.quietT = 0;
@@ -165,18 +188,20 @@ function applyShot(shot) {
     G.cops.push({ x: 1800 - 200, y: 1100 - 140, angle: 0 });
   } else if (shot === 'mission') {
     G.missions.start(1);
-    p.x = G.city.goldSpot.x - 120; p.y = G.city.goldSpot.y + 30;
+    p.x = G.city.goldSpot.x - 120;
+    p.y = G.city.goldSpot.y + 30;
   }
 }
 
 function update(dt) {
   const p = G.player;
   const input = G.input;
-  // Pause toggle: edge-triggered, one press = one toggle.
+  // Pause: edge-triggered, one press is exactly one toggle.
   if (input.wasPressed('KeyP') && G.state === 'playing') {
     G.paused = !G.paused;
     G.hud.showPause(G.paused);
-    if (G.paused) G.audio.musicStop(); else G.audio.musicStart();
+    if (G.paused) G.audio.musicStop();
+    else G.audio.musicStart();
   }
   if (input.wasPressed('KeyM')) {
     G.muted = !G.muted;
@@ -213,7 +238,7 @@ function loop(t) {
     update(dt);
   } else if (G.state === 'menu') {
     G.time += dt;
-    // Slow ambient pan behind the menu.
+    // A slow ambient pan behind the menu.
     G.camera.x = 600 + Math.sin(G.time * 0.05) * 500;
     G.camera.y = 500 + Math.cos(G.time * 0.04) * 300;
   }
@@ -225,18 +250,34 @@ G.hud = makeHud();
 G.input.attach();
 initWorld();
 G.hud.showMenu(hasSave());
-G.hud.el.btnStart.addEventListener('click', () => { G.audio.click(); startGame(false); });
-G.hud.el.btnContinue.addEventListener('click', () => { G.audio.click(); startGame(true); });
-G.hud.el.btnResume.addEventListener('click', () => {
-  G.paused = false; G.hud.showPause(false); G.audio.musicStart();
+G.hud.el.btnStart.addEventListener('click', () => {
+  G.audio.click();
+  startGame(false);
 });
-G.hud.el.btnRetry.addEventListener('click', () => { G.audio.click(); G.retry(); });
-G.hud.el.btnWinContinue.addEventListener('click', () => { G.audio.click(); G.hud.hideWin(); });
+G.hud.el.btnContinue.addEventListener('click', () => {
+  G.audio.click();
+  startGame(true);
+});
+G.hud.el.btnResume.addEventListener('click', () => {
+  G.paused = false;
+  G.hud.showPause(false);
+  G.audio.musicStart();
+});
+G.hud.el.btnRetry.addEventListener('click', () => {
+  G.audio.click();
+  G.retry();
+});
+G.hud.el.btnWinContinue.addEventListener('click', () => {
+  G.audio.click();
+  G.hud.hideWin();
+});
 G.hud.el.btnMute.addEventListener('click', () => {
-  G.muted = !G.muted; G.audio.setMuted(G.muted); G.hud.setMute(G.muted);
+  G.muted = !G.muted;
+  G.audio.setMuted(G.muted);
+  G.hud.setMute(G.muted);
 });
 
-// Expose for automated testing / screenshots.
+// Exposed for automated testing and screenshots.
 window.__game = G;
 window.__start = startGame;
 requestAnimationFrame(loop);

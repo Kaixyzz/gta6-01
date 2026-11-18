@@ -1,4 +1,4 @@
-// Pedestrians: sidewalk walkers who flee from gunfire and speeding cars.
+// Pedestrians: sidewalk walkers who run from gunfire and speeding cars.
 import { CFG } from './config.js';
 import { rand, pick } from './rng.js';
 import { dist } from './city.js';
@@ -10,7 +10,9 @@ export function makePeds(G, n) {
   for (let i = 0; i < n; i++) {
     const vertical = rng() < 0.5;
     const dir = rng() < 0.5 ? 1 : -1;
-    let x, y, axis;
+    let x;
+    let y;
+    let axis;
     if (vertical) {
       const rx = pick(rng, G.city.roadsV);
       x = rx + dir * (CFG.ROAD_W / 2 + 22);
@@ -23,10 +25,15 @@ export function makePeds(G, n) {
       axis = 'h';
     }
     G.peds.push({
-      x, y, axis, dir,
+      x,
+      y,
+      axis,
+      dir,
       speed: rand(rng, 45, 80),
       shirt: pick(rng, SHIRT_COLORS),
-      fleeT: 0, fleeX: 0, fleeY: 0,
+      fleeT: 0,
+      fleeX: 0,
+      fleeY: 0,
       wobble: rand(rng, 0, Math.PI * 2),
     });
   }
@@ -58,7 +65,7 @@ export function updatePeds(G, dt) {
       const sp = p.speed;
       if (p.axis === 'v') p.y += sp * p.dir * dt;
       else p.x += sp * p.dir * dt;
-      // Turn around at map edges; occasionally reverse at intersections.
+      // Turn around at the map edges; occasionally reverse at a crossing.
       if (p.axis === 'v' && (p.y < 120 || p.y > CFG.WORLD_H - 120)) p.dir *= -1;
       if (p.axis === 'h' && (p.x < 120 || p.x > CFG.BEACH_X - 120)) p.dir *= -1;
       if (rng() < dt * 0.02) p.dir *= -1;

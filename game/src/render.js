@@ -1,5 +1,5 @@
-// Canvas renderer: ground, roads, buildings, entities, mission beacon,
-// off-screen target arrow, then the minimap.
+// The canvas renderer: ground, roads, buildings, entities, the mission
+// beacon, the off-screen target arrow, and finally the minimap.
 import { CFG } from './config.js';
 import { drawMinimap } from './minimap.js';
 import { dist } from './city.js';
@@ -34,11 +34,11 @@ function drawCar(G, ctx, car) {
   ctx.fillStyle = car.color;
   rr(ctx, -car.w / 2, -car.h / 2, car.w, car.h, 7);
   ctx.fill();
-  // Windshield + rear window.
+  // Windshield and rear window.
   ctx.fillStyle = 'rgba(180, 220, 240, 0.85)';
   ctx.fillRect(car.w / 2 - 18, -car.h / 2 + 4, 8, car.h - 8);
   ctx.fillRect(-car.w / 2 + 6, -car.h / 2 + 4, 6, car.h - 8);
-  // Police livery + light bar.
+  // Police livery and the flashing light bar.
   if (car.isPatrol) {
     ctx.fillStyle = '#e8e8e8';
     ctx.fillRect(-6, -car.h / 2, 12, car.h);
@@ -52,7 +52,7 @@ function drawCar(G, ctx, car) {
   ctx.fillStyle = '#ffe98a';
   ctx.fillRect(car.w / 2 - 2, -car.h / 2 + 3, 3, 4);
   ctx.fillRect(car.w / 2 - 2, car.h / 2 - 7, 3, 4);
-  // Gold car marker.
+  // The gold car's star.
   if (car.gold) {
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 13px sans-serif';
@@ -76,16 +76,17 @@ export function drawWorld(G) {
   ctx.fillRect(0, 0, CFG.VIEW_W, CFG.VIEW_H);
   ctx.save();
   ctx.translate(-cam.x, -cam.y);
-  // Subtle checker on the grass.
+  // A subtle checker across the grass.
   ctx.fillStyle = P.grass2;
   const sq = 320;
-  const x0 = Math.floor(cam.x / sq) * sq, y0 = Math.floor(cam.y / sq) * sq;
+  const x0 = Math.floor(cam.x / sq) * sq;
+  const y0 = Math.floor(cam.y / sq) * sq;
   for (let x = x0; x < cam.x + CFG.VIEW_W + sq; x += sq) {
     for (let y = y0; y < cam.y + CFG.VIEW_H + sq; y += sq) {
       if (((x / sq) + (y / sq)) % 2 === 0) ctx.fillRect(x, y, sq, sq);
     }
   }
-  // Beach + water.
+  // Beach and water.
   ctx.fillStyle = P.sand;
   ctx.fillRect(CFG.BEACH_X, 0, CFG.WATER_X - CFG.BEACH_X, CFG.WORLD_H);
   ctx.fillStyle = P.water;
@@ -101,7 +102,7 @@ export function drawWorld(G) {
   ctx.fillRect(hb.x0, hb.y0, hb.x1 - hb.x0, 26);
   ctx.fillRect(hb.x0 + 60, hb.y0, 22, 200);
   ctx.fillRect(hb.x0 + 420, hb.y0, 22, 200);
-  // Roads.
+  // Roads, with sidewalks and a dashed center line.
   for (const rx of G.city.roadsV) {
     ctx.fillStyle = P.sidewalk;
     ctx.fillRect(rx - CFG.ROAD_W / 2 - 6, 0, CFG.ROAD_W + 12, CFG.WORLD_H);
@@ -122,7 +123,7 @@ export function drawWorld(G) {
       ctx.fillRect(x, ry - 2, 28, 4);
     }
   }
-  // Buildings.
+  // Buildings, with a shadow, an optional bright roof, and windows.
   for (const b of G.city.buildings) {
     if (!inView(G, b.x + b.w / 2, b.y + b.h / 2, 300)) continue;
     ctx.fillStyle = 'rgba(0,0,0,0.25)';
@@ -133,7 +134,6 @@ export function drawWorld(G) {
       ctx.fillStyle = 'rgba(255,255,255,0.22)';
       ctx.fillRect(b.x + 8, b.y + 8, b.w - 16, b.h - 16);
     }
-    // Windows.
     ctx.fillStyle = 'rgba(20,30,50,0.55)';
     const cols = Math.max(1, Math.floor(b.w / 34));
     const rows = Math.max(1, Math.floor(b.h / 34));
@@ -144,7 +144,7 @@ export function drawWorld(G) {
       }
     }
   }
-  // Mission beacon.
+  // The mission beacon: a gold column, a pulsing ring, and a label.
   const t = G.missions.target;
   if (t && !G.storyComplete) {
     const pulse = 1 + Math.sin(G.time * 4) * 0.15;
@@ -160,7 +160,7 @@ export function drawWorld(G) {
     ctx.textAlign = 'center';
     ctx.fillText(t.label || 'TARGET', t.x, t.y - 46);
   }
-  // Pickups.
+  // Pickups, bobbing gently.
   for (const k of G.pickups) {
     if (!inView(G, k.x, k.y, 60)) continue;
     const bob = Math.sin(k.bob) * 3;
@@ -180,7 +180,7 @@ export function drawWorld(G) {
       ctx.fillRect(k.x + 1, k.y + bob - 3, 2, 6);
     }
   }
-  // Parked + traffic + patrol cars.
+  // Cars: parked, traffic, patrols.
   for (const c of G.parked) drawCar(G, ctx, c);
   for (const c of G.traffic) drawCar(G, ctx, c);
   for (const c of G.patrols) drawCar(G, ctx, c);
@@ -210,7 +210,7 @@ export function drawWorld(G) {
     ctx.fillStyle = '#ffd700';
     ctx.fillRect(c.x - 1, c.y + 4, 2, 5);
   }
-  // Gang enemies.
+  // Gang enemies, with health pips and a gun barrel.
   for (const e of G.enemies) {
     if (!inView(G, e.x, e.y, 40)) continue;
     ctx.fillStyle = '#8e1f1f';
@@ -227,13 +227,12 @@ export function drawWorld(G) {
     ctx.moveTo(e.x, e.y);
     ctx.lineTo(e.x + Math.cos(e.angle) * 22, e.y + Math.sin(e.angle) * 22);
     ctx.stroke();
-    // Enemy health pips.
     ctx.fillStyle = '#ff5a4d';
     for (let i = 0; i < e.hp; i++) ctx.fillRect(e.x - 12 + i * 9, e.y - 20, 7, 3);
   }
-  // Player's car (drawn above traffic).
+  // The player's car, drawn above traffic.
   if (p.inCar && p.car) drawCar(G, ctx, p.car);
-  // Player on foot.
+  // The player on foot, with a facing tick.
   if (!p.inCar) {
     ctx.fillStyle = '#14b8a6';
     ctx.beginPath();
@@ -273,9 +272,10 @@ export function drawWorld(G) {
   }
   ctx.globalAlpha = 1;
   ctx.restore();
-  // Off-screen mission arrow.
+  // An arrow at the screen edge when the target is off-screen.
   if (t && !G.storyComplete) {
-    const sx = t.x - cam.x, sy = t.y - cam.y;
+    const sx = t.x - cam.x;
+    const sy = t.y - cam.y;
     if (sx < 0 || sx > CFG.VIEW_W || sy < 0 || sy > CFG.VIEW_H) {
       const cx = Math.max(50, Math.min(CFG.VIEW_W - 50, sx));
       const cy = Math.max(70, Math.min(CFG.VIEW_H - 50, sy));

@@ -1,5 +1,7 @@
-// localStorage save: money, mission progress, health, ammo, position.
-// Autosaved after every mission; loaded from the menu's Continue button.
+// Persistence through localStorage. The game autosaves after every
+// mission and on a busted/wasted run; the menu's Continue button loads
+// the save back. Everything is plain JSON and every call is guarded, so
+// a missing or blocked storage simply behaves like "no save".
 import { CFG } from './config.js';
 
 export function saveGame(G) {
@@ -42,6 +44,6 @@ export function clearSave() {
   try {
     localStorage.removeItem(CFG.SAVE_KEY);
   } catch (e) {
-    /* storage unavailable: nothing to clear */
+    // storage unavailable — nothing to clear
   }
 }

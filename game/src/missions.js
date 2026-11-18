@@ -1,8 +1,9 @@
-// SOLARA BAY — mission state machine. Four story missions: targets,
-// stages, payouts, toasts and the mission-complete transition.
-// The completion order matters: the mission index is advanced BEFORE the
-// autosave, so a continued game resumes on the NEXT mission instead of
-// replaying the one just finished.
+// SOLARA BAY — the mission state machine. Four story missions: their
+// targets, stages, payouts, toasts and the mission-complete transition.
+//
+// The order inside complete() matters: the mission index is advanced
+// BEFORE the autosave, so a continued game resumes on the NEXT mission
+// instead of replaying the one just finished.
 import { saveGame } from './save.js';
 import { spawnEnemies } from './combat.js';
 

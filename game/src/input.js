@@ -1,11 +1,13 @@
-// Keyboard + mouse state. `pressed` is edge-triggered: a code lands there
-// exactly once per physical keydown (key repeats are ignored), so one press
-// of P toggles pause exactly once.
+// Keyboard and mouse state. `pressed` is edge-triggered: a code enters
+// it exactly once per physical keydown (auto-repeat is ignored), so a
+// single press of P toggles pause exactly once and a single press of E
+// is exactly one enter/exit action.
 export function makeInput(canvas) {
   const input = {
     keys: new Set(),
     pressed: new Set(),
     mouse: { x: 0, y: 0, down: false, clicked: false },
+
     attach() {
       window.addEventListener('keydown', (e) => {
         if (e.repeat) return;
@@ -29,23 +31,30 @@ export function makeInput(canvas) {
         input.mouse.x = ((e.clientX - r.left) / r.width) * canvas.width;
         input.mouse.y = ((e.clientY - r.top) / r.height) * canvas.height;
       });
-      window.addEventListener('mouseup', () => { input.mouse.down = false; });
+      window.addEventListener('mouseup', () => {
+        input.mouse.down = false;
+      });
     },
+
     down(code) {
       return input.keys.has(code);
     },
+
     wasPressed(code) {
       return input.pressed.has(code);
     },
-    // WASD / arrow movement axis, normalized by the caller.
+
+    // WASD / arrow movement axis. The caller normalizes it.
     axis() {
-      let x = 0, y = 0;
+      let x = 0;
+      let y = 0;
       if (input.keys.has('KeyA') || input.keys.has('ArrowLeft')) x -= 1;
       if (input.keys.has('KeyD') || input.keys.has('ArrowRight')) x += 1;
       if (input.keys.has('KeyW') || input.keys.has('ArrowUp')) y -= 1;
       if (input.keys.has('KeyS') || input.keys.has('ArrowDown')) y += 1;
       return { x, y };
     },
+
     endFrame() {
       input.pressed.clear();
       input.mouse.clicked = false;

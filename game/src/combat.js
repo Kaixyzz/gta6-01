@@ -1,4 +1,4 @@
-// Combat: the player's pistol, gang enemies, bullets and pickups.
+// Combat: the player's pistol, the rival gang, bullets and pickups.
 import { CFG } from './config.js';
 import { dist, collideCircle } from './city.js';
 import { rand, pick } from './rng.js';
@@ -17,7 +17,7 @@ export function spawnPickup(G, x, y, kind) {
 
 export function spawnEnemies(G, cx, cy, n) {
   // Spawn on the roads around the turf, never inside a building block:
-  // two on the horizontal road, two on the vertical road.
+  // two on the east-west street, two on the north-south avenue.
   const spots = [
     { x: cx - 130, y: cy },
     { x: cx + 130, y: cy },
@@ -27,8 +27,12 @@ export function spawnEnemies(G, cx, cy, n) {
   for (let i = 0; i < n; i++) {
     const s = spots[i % spots.length];
     G.enemies.push({
-      x: s.x, y: s.y,
-      hp: 3, angle: 0, shootCd: rand(G.rng, 0.4, 1.2), speed: 150,
+      x: s.x,
+      y: s.y,
+      hp: 3,
+      angle: 0,
+      shootCd: rand(G.rng, 0.4, 1.2),
+      speed: 150,
     });
   }
 }
@@ -36,7 +40,7 @@ export function spawnEnemies(G, cx, cy, n) {
 export function updateCombat(G, dt) {
   const p = G.player;
   const input = G.input;
-  // Aim at the mouse (screen → world through the camera).
+  // Aim at the mouse (screen position, through the camera, into the world).
   const wx = G.camera.x + input.mouse.x;
   const wy = G.camera.y + input.mouse.y;
   if (!p.inCar) p.angle = Math.atan2(wy - p.y, wx - p.x);
@@ -47,22 +51,38 @@ export function updateCombat(G, dt) {
     p.ammo -= 1;
     const a = p.angle + rand(G.rng, -0.03, 0.03);
     G.bullets.push({
-      x: p.x + Math.cos(a) * 24, y: p.y + Math.sin(a) * 24,
-      vx: Math.cos(a) * CFG.BULLET_SPEED, vy: Math.sin(a) * CFG.BULLET_SPEED,
-      life: CFG.PISTOL_RANGE / CFG.BULLET_SPEED, enemy: false,
+      x: p.x + Math.cos(a) * 24,
+      y: p.y + Math.sin(a) * 24,
+      vx: Math.cos(a) * CFG.BULLET_SPEED,
+      vy: Math.sin(a) * CFG.BULLET_SPEED,
+      life: CFG.PISTOL_RANGE / CFG.BULLET_SPEED,
+      enemy: false,
     });
     G.audio.shoot();
     G.lastShot = { x: p.x, y: p.y, t: G.time };
     let copNear = false;
-    for (const c of G.cops) if (dist(p.x, p.y, c.x, c.y) < 700) copNear = true;
-    for (const c of G.patrols) if (dist(p.x, p.y, c.x, c.y) < 700) copNear = true;
-    if (copNear) G.police.addWanted(G, 1);
-    G.particles.push({ x: p.x + Math.cos(a) * 26, y: p.y + Math.sin(a) * 26, vx: Math.cos(a) * 120, vy: Math.sin(a) * 120, t: 0.12, color: '#ffd94d' });
+    for (const c of G.cops) {
+      if (dist(p.x, p.y, c.x, c.y) < 700) copNear = true;
+    }
+    for (const c of G.patrols) {
+      if (dist(p.x, p.y, c.x, c.y) < 700) copNear = true;
+    }
+    if (copNear) G.police.addWanted(1);
+    G.particles.push({
+      x: p.x + Math.cos(a) * 26,
+      y: p.y + Math.sin(a) * 26,
+      vx: Math.cos(a) * 120,
+      vy: Math.sin(a) * 120,
+      t: 0.12,
+      color: '#ffd94d',
+    });
   }
-  // Player bullets.
+  // The player's bullets.
   for (let i = G.bullets.length - 1; i >= 0; i--) {
     const b = G.bullets[i];
-    b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+    b.life -= dt;
     let dead = b.life <= 0 || pointInBuilding(G.city, b.x, b.y)
       || b.x < 0 || b.x > CFG.WATER_X || b.y < 0 || b.y > CFG.WORLD_H;
     if (!dead) {
@@ -82,12 +102,15 @@ export function updateCombat(G, dt) {
     }
     if (!dead) {
       for (const c of G.cops) {
-        if (dist(b.x, b.y, c.x, c.y) < 20) { dead = true; break; }
+        if (dist(b.x, b.y, c.x, c.y) < 20) {
+          dead = true;
+          break;
+        }
       }
     }
     if (dead) G.bullets.splice(i, 1);
   }
-  // Gang enemies: close in and shoot. They collide with buildings so they
+  // The gang: close in and shoot. They collide with buildings, so they
   // can never hide inside one where bullets cannot reach them.
   for (const e of G.enemies) {
     const tx = p.inCar && p.car ? p.car.x : p.x;
@@ -103,8 +126,12 @@ export function updateCombat(G, dt) {
     if (e.shootCd <= 0 && d < 430 && d > 40) {
       e.shootCd = 1.3;
       G.ebullets.push({
-        x: e.x + Math.cos(e.angle) * 22, y: e.y + Math.sin(e.angle) * 22,
-        vx: Math.cos(e.angle) * 380, vy: Math.sin(e.angle) * 380, life: 1.6, enemy: true,
+        x: e.x + Math.cos(e.angle) * 22,
+        y: e.y + Math.sin(e.angle) * 22,
+        vx: Math.cos(e.angle) * 380,
+        vy: Math.sin(e.angle) * 380,
+        life: 1.6,
+        enemy: true,
       });
       G.audio.enemyShoot();
     }
@@ -112,7 +139,9 @@ export function updateCombat(G, dt) {
   // Enemy bullets.
   for (let i = G.ebullets.length - 1; i >= 0; i--) {
     const b = G.ebullets[i];
-    b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+    b.life -= dt;
     let dead = b.life <= 0 || pointInBuilding(G.city, b.x, b.y);
     if (!dead && !p.inCar && dist(b.x, b.y, p.x, p.y) < 18) {
       damagePlayer(G, 8);
@@ -141,7 +170,8 @@ export function updateCombat(G, dt) {
   for (let i = G.particles.length - 1; i >= 0; i--) {
     const pt = G.particles[i];
     pt.t -= dt;
-    pt.x += pt.vx * dt; pt.y += pt.vy * dt;
+    pt.x += pt.vx * dt;
+    pt.y += pt.vy * dt;
     if (pt.t <= 0) G.particles.splice(i, 1);
   }
 }
