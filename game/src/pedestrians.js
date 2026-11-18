@@ -1,77 +1,88 @@
-// Pedestrians: sidewalk walkers who run from gunfire and speeding cars.
-import { CFG } from './config.js';
-import { rand, pick } from './rng.js';
-import { dist } from './city.js';
+// pedestrians.js — the people of SOLARA BAY. They stroll along sidewalks,
+// change direction at intersections, and run away from gunfire and crashes.
 
-const SHIRT_COLORS = ['#e74c3c', '#3498db', '#f1c40f', '#9b59b6', '#1abc9c', '#ecf0f1', '#e67e22'];
+import { WORLD, ROADS_V, ROADS_H, TUNING, PALETTE } from './config.js';
+import { resolveCircle } from './city.js';
 
-export function makePeds(G, n) {
-  const rng = G.rng;
-  for (let i = 0; i < n; i++) {
-    const vertical = rng() < 0.5;
-    const dir = rng() < 0.5 ? 1 : -1;
-    let x;
-    let y;
-    let axis;
-    if (vertical) {
-      const rx = pick(rng, G.city.roadsV);
-      x = rx + dir * (CFG.ROAD_W / 2 + 22);
-      y = rand(rng, 150, CFG.WORLD_H - 150);
-      axis = 'v';
-    } else {
-      const ry = pick(rng, G.city.roadsH);
-      x = rand(rng, 150, CFG.BEACH_X - 150);
-      y = ry + dir * (CFG.ROAD_W / 2 + 22);
-      axis = 'h';
+export function makePedestrian(rng, x, y) {
+  const vertical = rng.chance(0.5);
+  const road = vertical ? rng.pick(ROADS_V) : rng.pick(ROADS_H);
+  return {
+    x: x !== undefined ? x : (vertical ? road + (rng.chance(0.5) ? 34 : -34) : rng.range(160, WORLD.w - 160)),
+    y: y !== undefined ? y : (vertical ? rng.range(160, 1620) : road + (rng.chance(0.5) ? 34 : -34)),
+    angle: rng.range(0, Math.PI * 2),
+    speed: rng.range(TUNING.pedSpeed * 0.7, TUNING.pedSpeed * 1.3),
+    color: rng.pick(PALETTE.pedColors),
+    // Walking the sidewalk: which road edge and which way.
+    roadKind: vertical ? 'v' : 'h',
+    roadValue: road,
+    side: rng.chance(0.5) ? 1 : -1,
+    dir: rng.chance(0.5) ? 1 : -1,
+    fleeUntil: 0,
+    fleeX: 0,
+    fleeY: 0,
+    wanderT: rng.range(1, 4),
+  };
+}
+
+export function scarePedestrians(peds, x, y, radius, now) {
+  for (const p of peds) {
+    if (Math.hypot(p.x - x, p.y - y) < radius) {
+      p.fleeUntil = now + 2.5;
+      p.fleeX = x;
+      p.fleeY = y;
     }
-    G.peds.push({
-      x,
-      y,
-      axis,
-      dir,
-      speed: rand(rng, 45, 80),
-      shirt: pick(rng, SHIRT_COLORS),
-      fleeT: 0,
-      fleeX: 0,
-      fleeY: 0,
-      wobble: rand(rng, 0, Math.PI * 2),
-    });
   }
 }
 
-export function updatePeds(G, dt) {
-  const rng = G.rng;
-  for (const p of G.peds) {
-    // What makes them run: a recent gunshot, or a fast car close by.
-    if (G.lastShot && G.time - G.lastShot.t < 1.2 && dist(p.x, p.y, G.lastShot.x, G.lastShot.y) < 260) {
-      p.fleeT = 2.2;
-      const d = Math.max(1, dist(p.x, p.y, G.lastShot.x, G.lastShot.y));
-      p.fleeX = (p.x - G.lastShot.x) / d;
-      p.fleeY = (p.y - G.lastShot.y) / d;
-    }
-    for (const c of G.traffic) {
-      if (Math.abs(c.speed) > 240 && dist(p.x, p.y, c.x, c.y) < 130) {
-        p.fleeT = 1.6;
-        const d = Math.max(1, dist(p.x, p.y, c.x, c.y));
-        p.fleeX = (p.x - c.x) / d;
-        p.fleeY = (p.y - c.y) / d;
-      }
-    }
-    if (p.fleeT > 0) {
-      p.fleeT -= dt;
-      p.x += p.fleeX * 175 * dt;
-      p.y += p.fleeY * 175 * dt;
-    } else {
-      const sp = p.speed;
-      if (p.axis === 'v') p.y += sp * p.dir * dt;
-      else p.x += sp * p.dir * dt;
-      // Turn around at the map edges; occasionally reverse at a crossing.
-      if (p.axis === 'v' && (p.y < 120 || p.y > CFG.WORLD_H - 120)) p.dir *= -1;
-      if (p.axis === 'h' && (p.x < 120 || p.x > CFG.BEACH_X - 120)) p.dir *= -1;
-      if (rng() < dt * 0.02) p.dir *= -1;
-    }
-    p.x = Math.max(20, Math.min(CFG.WATER_X - 20, p.x));
-    p.y = Math.max(20, Math.min(CFG.WORLD_H - 20, p.y));
-    p.wobble += dt * 6;
+export function updatePedestrian(p, rng, dt, now, city) {
+  if (now < p.fleeUntil) {
+    // Run away from the scare point.
+    const dx = p.x - p.fleeX;
+    const dy = p.y - p.fleeY;
+    const d = Math.hypot(dx, dy) || 1;
+    p.angle = Math.atan2(dy / d, dx / d);
+    p.x += Math.cos(p.angle) * TUNING.pedFleeSpeed * dt;
+    p.y += Math.sin(p.angle) * TUNING.pedFleeSpeed * dt;
+    resolveCircle(city, p, 10);
+    return;
   }
+
+  p.wanderT -= dt;
+  if (p.wanderT <= 0) {
+    p.wanderT = rng.range(2, 6);
+    // At an intersection, sometimes turn or reverse.
+    const nearV = ROADS_V.find((rx) => Math.abs(p.x - rx) < 40);
+    const nearH = ROADS_H.find((ry) => Math.abs(p.y - ry) < 40);
+    if (p.roadKind === 'v' && nearH !== undefined && rng.chance(0.4)) {
+      p.roadKind = 'h';
+      p.roadValue = nearH;
+      p.side = rng.chance(0.5) ? 1 : -1;
+      p.dir = rng.chance(0.5) ? 1 : -1;
+      p.y = nearH + p.side * 34;
+    } else if (p.roadKind === 'h' && nearV !== undefined && rng.chance(0.4)) {
+      p.roadKind = 'v';
+      p.roadValue = nearV;
+      p.side = rng.chance(0.5) ? 1 : -1;
+      p.dir = rng.chance(0.5) ? 1 : -1;
+      p.x = nearV + p.side * 34;
+    } else if (rng.chance(0.3)) {
+      p.dir *= -1;
+    }
+  }
+
+  if (p.roadKind === 'v') {
+    p.angle = p.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+    p.y += p.dir * p.speed * dt;
+    p.x += (p.roadValue + p.side * 34 - p.x) * Math.min(1, dt * 2);
+    if (p.y < 120) { p.y = 120; p.dir = 1; }
+    if (p.y > 1660) { p.y = 1660; p.dir = -1; }
+  } else {
+    p.angle = p.dir > 0 ? 0 : Math.PI;
+    p.x += p.dir * p.speed * dt;
+    p.y += (p.roadValue + p.side * 34 - p.y) * Math.min(1, dt * 2);
+    if (p.x < 120) { p.x = 120; p.dir = 1; }
+    if (p.x > WORLD.w - 120) { p.x = WORLD.w - 120; p.dir = -1; }
+  }
+  resolveCircle(city, p, 10);
 }

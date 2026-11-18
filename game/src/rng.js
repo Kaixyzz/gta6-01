@@ -1,35 +1,49 @@
-// Deterministic randomness for Solara Bay. A single seeded generator
-// (mulberry32) builds the city, so every fresh load produces the same
-// streets, the same parked cars and the same pedestrians. Gameplay
-// randomness also draws from this stream, never from Math.random, which
-// keeps a scripted run reproducible.
-export function makeRng(seed) {
-  let s = seed >>> 0;
+// rng.js — a small deterministic seeded random generator (mulberry32).
+// The city and every spawn in SOLARA BAY come from fixed seeds, so the world
+// is identical on every run and gameplay randomness is reproducible.
+
+export function mulberry32(seed) {
+  let a = seed >>> 0;
   return function next() {
-    s |= 0;
-    s = (s + 0x6d2b79f5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
 
-// A float in [lo, hi).
-export function rand(rng, lo, hi) {
-  return lo + rng() * (hi - lo);
-}
-
-// An integer in [lo, hi], both ends inclusive.
-export function randInt(rng, lo, hi) {
-  return Math.floor(lo + rng() * (hi - lo + 1));
-}
-
-// One element of an array, uniformly.
-export function pick(rng, arr) {
-  return arr[Math.floor(rng() * arr.length)];
-}
-
-// True with probability p.
-export function chance(rng, p) {
-  return rng() < p;
+export class Rng {
+  constructor(seed) {
+    this.next = mulberry32(seed);
+  }
+  float() {
+    return this.next();
+  }
+  // Float in [min, max).
+  range(min, max) {
+    return min + this.next() * (max - min);
+  }
+  // Integer in [min, max] inclusive.
+  int(min, max) {
+    return Math.floor(this.range(min, max + 1));
+  }
+  // True with probability p.
+  chance(p) {
+    return this.next() < p;
+  }
+  pick(list) {
+    return list[Math.floor(this.next() * list.length)];
+  }
+  // Fisher-Yates shuffle, returns a new array.
+  shuffle(list) {
+    const out = list.slice();
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = Math.floor(this.next() * (i + 1));
+      const tmp = out[i];
+      out[i] = out[j];
+      out[j] = tmp;
+    }
+    return out;
+  }
 }

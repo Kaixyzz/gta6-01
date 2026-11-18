@@ -1,64 +1,76 @@
-// Keyboard and mouse state. `pressed` is edge-triggered: a code enters
-// it exactly once per physical keydown (auto-repeat is ignored), so a
-// single press of P toggles pause exactly once and a single press of E
-// is exactly one enter/exit action.
-export function makeInput(canvas) {
-  const input = {
-    keys: new Set(),
-    pressed: new Set(),
-    mouse: { x: 0, y: 0, down: false, clicked: false },
+// input.js — keyboard and mouse state for SOLARA BAY.
+// Tracks held keys, edge-triggered presses (consumed once per frame), and the
+// mouse position in screen and world coordinates.
 
-    attach() {
-      window.addEventListener('keydown', (e) => {
-        if (e.repeat) return;
-        input.keys.add(e.code);
-        input.pressed.add(e.code);
-        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
-          e.preventDefault();
-        }
-      });
-      window.addEventListener('keyup', (e) => input.keys.delete(e.code));
-      window.addEventListener('blur', () => input.keys.clear());
-      canvas.addEventListener('mousemove', (e) => {
-        const r = canvas.getBoundingClientRect();
-        input.mouse.x = ((e.clientX - r.left) / r.width) * canvas.width;
-        input.mouse.y = ((e.clientY - r.top) / r.height) * canvas.height;
-      });
-      canvas.addEventListener('mousedown', (e) => {
-        input.mouse.down = true;
-        input.mouse.clicked = true;
-        const r = canvas.getBoundingClientRect();
-        input.mouse.x = ((e.clientX - r.left) / r.width) * canvas.width;
-        input.mouse.y = ((e.clientY - r.top) / r.height) * canvas.height;
-      });
-      window.addEventListener('mouseup', () => {
-        input.mouse.down = false;
-      });
-    },
+export class Input {
+  constructor(canvas, onGesture) {
+    this.keys = new Set();
+    this.pressed = new Set();
+    this.mouseX = 0;
+    this.mouseY = 0;
+    this.mouseDown = false;
+    this.mouseClicked = false;
+    this._gesture = onGesture || (() => {});
 
-    down(code) {
-      return input.keys.has(code);
-    },
+    window.addEventListener('keydown', (e) => {
+      const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+        e.preventDefault();
+      }
+      if (!e.repeat) this.pressed.add(k);
+      this.keys.add(k);
+      this._gesture();
+    });
+    window.addEventListener('keyup', (e) => {
+      const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+      this.keys.delete(k);
+    });
+    canvas.addEventListener('mousemove', (e) => {
+      const r = canvas.getBoundingClientRect();
+      this.mouseX = e.clientX - r.left;
+      this.mouseY = e.clientY - r.top;
+    });
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 0) {
+        this.mouseDown = true;
+        this.mouseClicked = true;
+      }
+      this._gesture();
+    });
+    window.addEventListener('mouseup', (e) => {
+      if (e.button === 0) this.mouseDown = false;
+    });
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    window.addEventListener('blur', () => {
+      this.keys.clear();
+      this.mouseDown = false;
+    });
+  }
 
-    wasPressed(code) {
-      return input.pressed.has(code);
-    },
+  // True while the key is held (case-insensitive single letters).
+  held(...names) {
+    return names.some((n) => this.keys.has(n));
+  }
 
-    // WASD / arrow movement axis. The caller normalizes it.
-    axis() {
-      let x = 0;
-      let y = 0;
-      if (input.keys.has('KeyA') || input.keys.has('ArrowLeft')) x -= 1;
-      if (input.keys.has('KeyD') || input.keys.has('ArrowRight')) x += 1;
-      if (input.keys.has('KeyW') || input.keys.has('ArrowUp')) y -= 1;
-      if (input.keys.has('KeyS') || input.keys.has('ArrowDown')) y += 1;
-      return { x, y };
-    },
+  // True only on the frame the key went down.
+  wasPressed(...names) {
+    return names.some((n) => this.pressed.has(n));
+  }
 
-    endFrame() {
-      input.pressed.clear();
-      input.mouse.clicked = false;
-    },
-  };
-  return input;
+  // Movement axes from WASD / arrows: -1, 0 or 1 each.
+  axes() {
+    let x = 0;
+    let y = 0;
+    if (this.held('a', 'ArrowLeft')) x -= 1;
+    if (this.held('d', 'ArrowRight')) x += 1;
+    if (this.held('w', 'ArrowUp')) y -= 1;
+    if (this.held('s', 'ArrowDown')) y += 1;
+    return { x, y };
+  }
+
+  // Call at the end of each frame: edge triggers live for one frame only.
+  endFrame() {
+    this.pressed.clear();
+    this.mouseClicked = false;
+  }
 }

@@ -1,49 +1,77 @@
-// Persistence through localStorage. The game autosaves after every
-// mission and on a busted/wasted run; the menu's Continue button loads
-// the save back. Everything is plain JSON and every call is guarded, so
-// a missing or blocked storage simply behaves like "no save".
-import { CFG } from './config.js';
+// save.js — save and load SOLARA BAY through localStorage.
+// A save holds money, mission progress, health, ammo and the player's
+// position. Loading a finished story shows the Story Complete card, never
+// "Mission 1/4".
+
+import { TUNING, PLACES } from './config.js';
+import { startMission } from './missions.js';
 
 export function saveGame(G) {
   try {
-    const p = G.player;
     const data = {
-      money: p.money,
-      missionIndex: G.missions.index,
-      hp: p.hp,
-      ammo: p.ammo,
-      x: p.x,
-      y: p.y,
-      storyComplete: G.storyComplete,
+      v: 1,
+      money: G.player.money,
+      hp: Math.round(G.player.hp),
+      ammo: G.player.ammo,
+      mission: G.mission.index,
+      storyComplete: !!G.storyComplete,
+      px: Math.round(G.player.x),
+      py: Math.round(G.player.y),
       savedAt: Date.now(),
     };
-    localStorage.setItem(CFG.SAVE_KEY, JSON.stringify(data));
+    window.localStorage.setItem(TUNING.saveKey, JSON.stringify(data));
     return true;
   } catch (e) {
     return false;
   }
 }
 
-export function loadGame() {
+export function loadSave() {
   try {
-    const raw = localStorage.getItem(CFG.SAVE_KEY);
+    const raw = window.localStorage.getItem(TUNING.saveKey);
     if (!raw) return null;
-    const d = JSON.parse(raw);
-    if (typeof d.money !== 'number' || typeof d.missionIndex !== 'number') return null;
-    return d;
+    const data = JSON.parse(raw);
+    if (!data || data.v !== 1) return null;
+    return data;
   } catch (e) {
     return null;
   }
 }
 
 export function hasSave() {
-  return loadGame() !== null;
+  return loadSave() !== null;
 }
 
 export function clearSave() {
   try {
-    localStorage.removeItem(CFG.SAVE_KEY);
+    window.localStorage.removeItem(TUNING.saveKey);
   } catch (e) {
-    // storage unavailable — nothing to clear
+    // Storage may be unavailable; a missing save is the same outcome.
   }
+}
+
+// Apply a loaded save to a fresh game object. Returns false when there is
+// no save to apply.
+export function applySave(G, data) {
+  if (!data) return false;
+  G.player.money = data.money ?? TUNING.startMoney;
+  G.player.hp = data.hp ?? TUNING.playerHp;
+  G.player.ammo = data.ammo ?? TUNING.startAmmo;
+  G.player.x = data.px ?? PLACES.garage.x;
+  G.player.y = data.py ?? PLACES.garage.y;
+  G.player.inCar = false;
+  G.player.car = null;
+  G.storyComplete = !!data.storyComplete;
+  if (G.storyComplete) {
+    G.mission.index = 4;
+    G.mission.done = true;
+    G.phase = 'story';
+    G.mission.cardTitle = 'Story Complete';
+    G.mission.cardText = 'You own Solara Bay now. $3,150 and a legend.';
+    G.mission.cardUntil = G.time + 999;
+  } else {
+    startMission(G, Math.max(0, Math.min(3, data.mission ?? 0)));
+    G.phase = 'playing';
+  }
+  return true;
 }
