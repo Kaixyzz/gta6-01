@@ -4,83 +4,51 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SOLARA BAY — Streets of the Bay</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2032%2032%27%3E%3Crect%20width%3D%2732%27%20height%3D%2732%27%20rx%3D%276%27%20fill%3D%27%230e7a6b%27%2F%3E%3Ccircle%20cx%3D%2716%27%20cy%3D%2712%27%20r%3D%276%27%20fill%3D%27%23ffd166%27%2F%3E%3Crect%20x%3D%274%27%20y%3D%2720%27%20width%3D%2724%27%20height%3D%274%27%20rx%3D%272%27%20fill%3D%27%232fb3a3%27%2F%3E%3C%2Fsvg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20fill%3D%22%230ea5b7%22%2F%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2212%22%20r%3D%227%22%20fill%3D%22%23ffd166%22%2F%3E%3Crect%20y%3D%2220%22%20width%3D%2232%22%20height%3D%2212%22%20fill%3D%22%23f4d58d%22%2F%3E%3C%2Fsvg%3E">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div id="wrap">
   <canvas id="game" width="1280" height="720"></canvas>
 
-  <div id="hud" class="hidden">
-    <div id="stats">
-      <div class="stat"><span class="label">CASH</span><span id="hud-money">$50</span></div>
-      <div class="stat"><span class="label">HEALTH</span><span id="hud-hp"><i id="hp-fill"></i></span></div>
-      <div class="stat"><span class="label">AMMO</span><span id="hud-ammo">24</span></div>
-    </div>
-    <div id="wanted"><span class="label">WANTED</span><span id="hud-stars">☆☆☆</span></div>
-    <div id="mission-card">
-      <div id="mission-title">Mission 1/4 — First Wheels</div>
-      <div id="mission-objective">Steal a car and drive to the drop-off.</div>
-      <div id="mission-reward">Reward $300</div>
-    </div>
-    <canvas id="minimap" width="190" height="142"></canvas>
-    <div id="toast"></div>
-    <div id="hint">WASD drive / walk &nbsp;·&nbsp; E enter car &nbsp;·&nbsp; Click shoot &nbsp;·&nbsp; P pause</div>
-  </div>
-
-  <div id="overlay-start" class="overlay">
+  <div id="overlay-title" class="overlay">
     <div class="panel">
       <h1>SOLARA BAY</h1>
-      <p class="tagline">Streets of the Bay — a top-down open-world crime story</p>
-      <p class="story">A small-time driver. A sun-soaked coastal city. Four jobs to
-      go from nobody to legend — steal the wheels, make the pickup, hold the
-      turf, and outrun the whole Bay PD on the getaway.</p>
+      <p class="tagline">Streets of the Bay</p>
+      <p class="intro">A small-time driver with big plans. Steal cars, dodge the law, and pull six jobs to become King of the Bay.</p>
       <div class="controls">
-        <span><b>WASD / arrows</b> walk &amp; drive</span>
-        <span><b>E</b> enter / exit car</span>
-        <span><b>Mouse + click</b> aim &amp; shoot</span>
-        <span><b>P</b> pause &nbsp;·&nbsp; <b>M</b> mute</span>
+        <div><b>WASD</b> move / drive</div>
+        <div><b>E</b> enter / exit car</div>
+        <div><b>Mouse</b> aim &nbsp;·&nbsp; <b>Click</b> shoot</div>
+        <div><b>P / Esc</b> pause &nbsp;·&nbsp; <b>Enter</b> start</div>
       </div>
-      <button id="btn-start" class="big">Start Story</button>
+      <button id="btn-start" class="big">▶ Start Story</button>
       <button id="btn-continue" class="big ghost hidden">Continue</button>
+      <p class="hint">Press ENTER to start</p>
     </div>
   </div>
 
   <div id="overlay-pause" class="overlay hidden">
     <div class="panel">
-      <h2>Paused</h2>
-      <p class="story">Take a breath. The Bay waits for no one — except now.</p>
+      <h2>PAUSED</h2>
+      <p class="intro" id="pause-sub">Take a breath. The Bay waits.</p>
       <button id="btn-resume" class="big">Resume</button>
+      <button id="btn-restart" class="big ghost">Restart Mission</button>
+      <button id="btn-quit" class="big ghost">Quit to Title</button>
     </div>
   </div>
 
   <div id="overlay-end" class="overlay hidden">
     <div class="panel">
-      <h2>Story Complete</h2>
-      <p class="story">You made the getaway. Solara Bay is yours now — every
-      street, every wheel, every dollar.</p>
-      <p id="end-stats" class="story"></p>
+      <h1 class="gold">★ STORY COMPLETE ★</h1>
+      <p class="intro">Six jobs. Zero regrets. You are the King of the Bay.</p>
+      <p class="stats" id="end-stats"></p>
       <button id="btn-again" class="big">Play Again</button>
+      <button id="btn-title2" class="big ghost">Back to Title</button>
     </div>
   </div>
 
-  <div id="overlay-busted" class="overlay hidden">
-    <div class="panel">
-      <h2>Busted</h2>
-      <p class="story">The Bay PD caught up with you. You walk out of the
-      precinct with a warning — and a thinner wallet.</p>
-      <button id="btn-busted" class="big">Back on the Street</button>
-    </div>
-  </div>
-
-  <div id="overlay-wasted" class="overlay hidden">
-    <div class="panel">
-      <h2>Wasted</h2>
-      <p class="story">The Bay chewed you up. You wake in the garage, patched
-      up and ready to go again.</p>
-      <button id="btn-wasted" class="big">Get Up</button>
-    </div>
-  </div>
+  <div id="toast" class="hidden"></div>
 </div>
 <script type="module" src="js/game.js"></script>
 </body>
