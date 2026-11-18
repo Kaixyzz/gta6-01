@@ -1,44 +1,39 @@
-// main.ts — the entrypoint for the SOLARA BAY entry.
+// SOLARA BAY — entry program (Node 22, standard library only).
 //
-// It copies game/ and screenshots/ from this repository into the output
-// directory and writes dossier.json there with make.fun's library, so the
-// grader can check the entry byte for byte. It runs twice and must produce
-// identical bytes both times; buildDossier is deterministic, and the copy
-// below is a plain recursive copy, so the two runs agree.
-//
-// Usage (outside the grader):
+// It hands the game in: copies game/ and screenshots/ from beside this file
+// into the output directory and writes /output/dossier.json with the vendored
+// make.fun library, so the judge can read the game from the dossier alone.
+// Outside the grader, MAKEFUN_OUTPUT_DIR stands in for /output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
+// The program runs twice and both runs must write identical bytes.
 
-import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-game.ts';
 
-// The repository root is the directory this file lives in.
-const repoRoot = dirname(fileURLToPath(import.meta.url));
+const here = fileURLToPath(new URL('.', import.meta.url));
+const out = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
-// The grader sets MAKEFUN_OUTPUT_DIR; /output is the platform default.
-const outputDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
-
-function copyTree(name: string): void {
-  const from = join(repoRoot, name);
-  const to = join(outputDir, name);
-  if (!existsSync(from)) {
-    throw new Error(`main.ts: ${name}/ is missing from the repository`);
-  }
-  rmSync(to, { recursive: true, force: true });
-  cpSync(from, to, { recursive: true });
+function copyTree(src, dst) {
+  mkdirSync(dst, { recursive: true });
+  if (existsSync(src)) cpSync(src, dst, { recursive: true });
 }
 
-mkdirSync(outputDir, { recursive: true });
-copyTree('game');
-copyTree('screenshots');
+copyTree(join(here, 'game'), join(out, 'game'));
+copyTree(join(here, 'screenshots'), join(out, 'screenshots'));
 
-const dossier = buildDossier(outputDir, {
-  text_max_bytes: 163840,
-  screenshots: { max: 4, max_bytes: 262144 },
-  game_max_files: 993,
-  game_max_bytes: 50331648,
-});
-writeFileSync(join(outputDir, 'dossier.json'), dossier);
-console.log(`wrote ${join(outputDir, 'dossier.json')} (${dossier.length} bytes)`);
+// The scorer's own caps: only text_max_bytes shapes the dossier's bytes; the
+// rest refuse an entry the scorer would refuse (more than 4 screenshots or one
+// over 256 KiB; more than 993 files in game/ or 48 MiB of game files in all,
+// or a path under game/ over 1000 bytes).
+writeFileSync(
+  join(out, 'dossier.json'),
+  buildDossier(out, {
+    text_max_bytes: 163840,
+    screenshots: { max: 4, max_bytes: 262144 },
+    game_max_files: 993,
+    game_max_bytes: 50331648,
+    game_path_max_bytes: 1000,
+  }),
+);
