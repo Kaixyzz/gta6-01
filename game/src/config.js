@@ -1,61 +1,50 @@
-// Every tuning number and colour in one place. The playfield is a fixed 1280x720 logical area;
-// the renderer scales it to the window, so no rule below depends on the screen size.
-
-export const FIELD = { width: 1280, height: 720, groundY: 664 };
-
-/** The simulation's fixed step, in seconds: 60 updates a second whatever the display's rate. */
-export const STEP = 1 / 60;
-
-export const PLAYER = {
-  width: 72,
-  height: 24,
-  speed: 560,
-  invulnerable: 1.5,
+// SOLARA BAY — shared tuning constants. Plain data, no logic.
+export const CFG = {
+  WORLD_W: 3840,
+  WORLD_H: 2880,
+  ROAD_W: 170,
+  ROADS_V: [400, 1100, 1800, 2500, 3200],
+  ROADS_H: [400, 1100, 1800, 2500],
+  BEACH_X: 3440,
+  WATER_X: 3720,
+  HARBOR: { x0: 80, y0: 2620, x1: 980, y1: 2880 },
+  PLAYER_SPEED: 230,
+  PLAYER_SPRINT: 345,
+  PLAYER_HP: 100,
+  START_MONEY: 50,
+  PAYOUTS: [300, 500, 800, 1500],
+  MONEY_AFTER: [350, 850, 1650, 3150],
+  PISTOL_AMMO_START: 12,
+  PISTOL_MAX_AMMO: 48,
+  PISTOL_RATE: 0.22,
+  PISTOL_RANGE: 620,
+  BULLET_SPEED: 900,
+  WANTED_MAX: 5,
+  WANTED_DECAY_QUIET_S: 12,
+  WANTED_DECAY_STEP_S: 8,
+  BUSTED_PENALTY: 0.2,
+  VIEW_W: 1280,
+  VIEW_H: 720,
+  SAVE_KEY: 'solara-bay-save-v1',
+  // Fixed story places — every one sits on open road, never inside a building.
+  SPAWN: { x: 400, y: 400 },
+  GARAGE: { x: 1800, y: 2500 },
+  GOLD_SPOT: { x: 1100, y: 1800 },
+  DELIVER: { x: 3200, y: 400 },
+  TURF: { x: 2500, y: 1100 },
+  SAFEHOUSE: { x: 400, y: 2500 },
+  HOSPITAL: { x: 400, y: 400 },
+  PALETTE: {
+    grass: '#5da24a',
+    grass2: '#54944a',
+    road: '#3a3f47',
+    roadEdge: '#2c3038',
+    dash: '#e8d44d',
+    sidewalk: '#8a8f96',
+    sand: '#e6cf9a',
+    water: '#2f7fb8',
+    water2: '#2a6ea3',
+    dock: '#7a5a3a',
+  },
+  BUILDING_COLORS: ['#c96f4a', '#d8a24a', '#7fa8c9', '#9a7fc9', '#c95f7a', '#6fae7f', '#b8b0a0', '#e07840'],
 };
-
-export const LIVES = 3;
-
-export const BLOCK = {
-  minWidth: 40,
-  maxWidth: 110,
-  height: 36,
-  speed: 240,
-  speedPerLevel: 30,
-  speedJitter: 90,
-  interval: 0.55,
-  intervalScale: 0.88,
-  minInterval: 0.14,
-  dodgePoints: 1,
-};
-
-export const COIN = {
-  size: 24,
-  speed: 190,
-  speedPerLevel: 14,
-  interval: 1.4,
-  intervalJitter: 0.8,
-  points: 10,
-};
-
-/** Seconds of play per level, and the last level: speeds and spawn rates stop growing there. */
-export const LEVEL = { seconds: 12, max: 12 };
-
-/** How many falling things can exist at once; the pool is allocated once, at boot. */
-export const POOL_SIZE = 64;
-
-export const PALETTE = {
-  backdrop: '#11141b',
-  sky: '#1b1f2a',
-  ground: '#2a3040',
-  player: '#4fc3f7',
-  block: '#e5534b',
-  coin: '#f2c94c',
-  panel: '#252b38',
-  text: '#eef1f5',
-  muted: '#8b93a3',
-};
-
-export const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
-
-/** Where the best score is kept between visits (this browser only). */
-export const BEST_KEY = 'block-dodger.best';
