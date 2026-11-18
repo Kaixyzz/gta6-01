@@ -4,80 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SOLARA BAY — Streets of the Bay</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpolygon points='50,5 61,38 95,38 68,59 78,92 50,72 22,92 32,59 5,38 39,38' fill='%23ffd700'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2032%2032%27%3E%3Crect%20width%3D%2732%27%20height%3D%2732%27%20fill%3D%27%23f2b705%27%2F%3E%3Ccircle%20cx%3D%2716%27%20cy%3D%2716%27%20r%3D%279%27%20fill%3D%27%230e7c7b%27%2F%3E%3Ccircle%20cx%3D%2716%27%20cy%3D%2716%27%20r%3D%274%27%20fill%3D%27%23fff3d6%27%2F%3E%3C%2Fsvg%3E">
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #10141a; font-family: 'Segoe UI', system-ui, sans-serif; color: #eef2f5; overflow: hidden; }
-  #wrap { position: relative; width: 1280px; height: 720px; margin: 0 auto; }
-  canvas { display: block; width: 1280px; height: 720px; background: #5da24a; }
-  .hud { position: absolute; pointer-events: none; z-index: 5; }
-  #hud-top { top: 14px; left: 14px; display: flex; gap: 14px; align-items: center; }
-  .pill { background: rgba(10, 16, 22, 0.78); border: 1px solid rgba(255,255,255,0.18); border-radius: 8px; padding: 7px 12px; font-weight: 700; font-size: 15px; }
-  #hp-bar { width: 170px; height: 14px; background: rgba(10,16,22,0.78); border: 1px solid rgba(255,255,255,0.25); border-radius: 7px; overflow: hidden; }
-  #hp-fill { height: 100%; width: 100%; background: #3ec95a; transition: width 0.2s; }
-  #stars { letter-spacing: 2px; font-size: 17px; }
-  #mission-name { top: 14px; left: 50%; transform: translateX(-50%); font-size: 15px; }
-  #objective { left: 14px; bottom: 14px; max-width: 460px; font-size: 14px; line-height: 1.4; }
-  #objective b { color: #ffd700; }
-  #toast { top: 74px; left: 50%; transform: translateX(-50%); max-width: 760px; text-align: center; background: rgba(10,16,22,0.85); border: 1px solid #ffd700; border-radius: 8px; padding: 10px 18px; font-size: 15px; line-height: 1.45; opacity: 0; transition: opacity 0.3s; }
-  #btn-mute { position: absolute; top: 150px; right: 14px; z-index: 6; pointer-events: auto; background: rgba(10,16,22,0.78); color: #eef2f5; border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 13px; }
-  .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: rgba(8, 12, 18, 0.82); z-index: 10; text-align: center; padding: 40px; }
-  .overlay h1 { font-size: 54px; letter-spacing: 4px; color: #ffd700; text-shadow: 0 3px 0 #7a5a00; }
-  .overlay h2 { font-size: 40px; letter-spacing: 3px; }
-  .overlay p { font-size: 16px; line-height: 1.6; max-width: 640px; color: #cfd6dd; }
-  .overlay .sub { color: #ffd700; font-weight: 700; }
-  button.big { pointer-events: auto; background: #ffd700; color: #1a1400; border: none; border-radius: 10px; padding: 13px 34px; font-size: 18px; font-weight: 800; cursor: pointer; }
-  button.big:hover { background: #ffe14d; }
-  button.ghost { pointer-events: auto; background: transparent; color: #eef2f5; border: 2px solid rgba(255,255,255,0.5); border-radius: 10px; padding: 11px 28px; font-size: 16px; font-weight: 700; cursor: pointer; }
-  .controls { font-size: 14px; line-height: 1.9; color: #b9c4cd; }
-  .controls b { color: #fff; }
-  #end, #pause, #win { display: none; }
+  html, body { margin: 0; padding: 0; background: #0b1620; height: 100%; overflow: hidden; }
+  canvas { display: block; width: 100vw; height: 100vh; cursor: crosshair; }
 </style>
 </head>
 <body>
-<div id="wrap">
-  <canvas id="game" width="1280" height="720"></canvas>
-  <div class="hud" id="hud-top">
-    <div id="hp-bar"><div id="hp-fill"></div></div>
-    <div class="pill" id="money">$50</div>
-    <div class="pill" id="ammo">Ammo 12</div>
-    <div class="pill" id="stars">☆☆☆☆☆</div>
-  </div>
-  <div class="hud pill" id="mission-name">SOLARA BAY</div>
-  <div class="hud pill" id="objective"><b>Objective:</b> <span id="objective-text">Start the story.</span></div>
-  <div class="hud" id="toast"></div>
-  <button id="btn-mute">🔊 Sound</button>
-
-  <div class="overlay" id="menu">
-    <h1>SOLARA BAY</h1>
-    <p class="sub">Streets of the Bay — a top-down open-world crime story</p>
-    <p>Milo "Vex" Raines is back in Solara Bay. Steal cars, outrun the law, and run four story missions across a sun-soaked coastal city — from a quiet pickup to a full-blown getaway.</p>
-    <div class="controls">
-      <b>WASD / Arrows</b> move &amp; drive &nbsp;·&nbsp; <b>Mouse</b> aim &nbsp;·&nbsp; <b>Click / Space</b> shoot<br>
-      <b>E</b> enter / exit car &nbsp;·&nbsp; <b>Shift</b> sprint &nbsp;·&nbsp; <b>P</b> pause &nbsp;·&nbsp; <b>M</b> mute
-    </div>
-    <button class="big" id="btn-start">▶ Start Story</button>
-    <button class="ghost" id="btn-continue">Continue Saved Game</button>
-  </div>
-
-  <div class="overlay" id="pause">
-    <h2>PAUSED</h2>
-    <p>Take a breath, Vex. The Bay waits.</p>
-    <button class="big" id="btn-resume">Resume</button>
-  </div>
-
-  <div class="overlay" id="end">
-    <h2 id="end-title">BUSTED</h2>
-    <p id="end-text"></p>
-    <button class="big" id="btn-retry">↻ Back to the Streets</button>
-  </div>
-
-  <div class="overlay" id="win">
-    <h2>STORY COMPLETE</h2>
-    <p>All four missions done. Solara Bay is yours, Vex — keep free-roaming, or come back for more heat.</p>
-    <button class="big" id="btn-win-continue">Keep Free-Roaming</button>
-  </div>
-</div>
+<canvas id="game"></canvas>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>
