@@ -1,4 +1,5 @@
-// Deterministic RNG (mulberry32) so the city is identical every load.
+// Seeded RNG (mulberry32). One seed drives the whole city, so every load
+// builds the same streets, the same parked cars and the same pedestrians.
 export function makeRng(seed) {
   let a = seed >>> 0;
   return function next() {
@@ -15,7 +16,7 @@ export function rand(rng, lo, hi) {
 }
 
 export function randInt(rng, lo, hi) {
-  return Math.floor(rand(rng, lo, hi + 1));
+  return Math.floor(lo + rng() * (hi - lo + 1));
 }
 
 export function pick(rng, arr) {

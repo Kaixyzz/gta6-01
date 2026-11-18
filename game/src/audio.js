@@ -1,4 +1,6 @@
 // All sound is synthesized with WebAudio — no audio files, no network.
+// Every call is safe when there is no audio device (headless): ensure()
+// catches the failure and the rest becomes a no-op.
 export function makeAudio() {
   const audio = {
     ctx: null,
@@ -18,7 +20,9 @@ export function makeAudio() {
           audio.master = audio.ctx.createGain();
           audio.master.gain.value = audio.muted ? 0 : 0.5;
           audio.master.connect(audio.ctx.destination);
-        } catch (e) { /* headless / no audio device: stay silent */ }
+        } catch (e) {
+          /* headless / no audio device: stay silent */
+        }
       }
       if (audio.ctx && audio.ctx.state === 'suspended') audio.ctx.resume();
       return !!audio.ctx;
@@ -37,8 +41,10 @@ export function makeAudio() {
       if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
       g.gain.setValueAtTime(vol || 0.15, t);
       g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-      o.connect(g); g.connect(audio.master);
-      o.start(t); o.stop(t + dur + 0.02);
+      o.connect(g);
+      g.connect(audio.master);
+      o.start(t);
+      o.stop(t + dur + 0.02);
     },
     noise(dur, vol, freq) {
       if (!audio.ensure() || audio.muted) return;
@@ -50,27 +56,47 @@ export function makeAudio() {
       const src = audio.ctx.createBufferSource();
       src.buffer = buf;
       const f = audio.ctx.createBiquadFilter();
-      f.type = 'lowpass'; f.frequency.value = freq || 1800;
+      f.type = 'lowpass';
+      f.frequency.value = freq || 1800;
       const g = audio.ctx.createGain();
       g.gain.value = vol || 0.25;
-      src.connect(f); f.connect(g); g.connect(audio.master);
+      src.connect(f);
+      f.connect(g);
+      g.connect(audio.master);
       src.start(t);
     },
-    shoot() { audio.noise(0.12, 0.3, 2400); audio.blip(180, 0.09, 'square', 0.12, 60); },
-    enemyShoot() { audio.blip(140, 0.08, 'square', 0.07, 70); },
-    pickup() { audio.blip(660, 0.1, 'sine', 0.18); setTimeout(() => audio.blip(990, 0.14, 'sine', 0.18), 90); },
-    missionDone() { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => audio.blip(f, 0.16, 'sine', 0.2), i * 110)); },
-    busted() { audio.blip(220, 0.5, 'sawtooth', 0.2, 55); },
-    click() { audio.blip(880, 0.05, 'sine', 0.12); },
+    shoot() {
+      audio.noise(0.12, 0.3, 2400);
+      audio.blip(180, 0.09, 'square', 0.12, 60);
+    },
+    enemyShoot() {
+      audio.blip(140, 0.08, 'square', 0.07, 70);
+    },
+    pickup() {
+      audio.blip(660, 0.1, 'sine', 0.18);
+      setTimeout(() => audio.blip(990, 0.14, 'sine', 0.18), 90);
+    },
+    missionDone() {
+      [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => audio.blip(f, 0.16, 'sine', 0.2), i * 110));
+    },
+    busted() {
+      audio.blip(220, 0.5, 'sawtooth', 0.2, 55);
+    },
+    click() {
+      audio.blip(880, 0.05, 'sine', 0.12);
+    },
     engineStart() {
       if (!audio.ensure() || audio.engineOsc) return;
       const o = audio.ctx.createOscillator();
       const g = audio.ctx.createGain();
-      o.type = 'sawtooth'; o.frequency.value = 55;
+      o.type = 'sawtooth';
+      o.frequency.value = 55;
       g.gain.value = 0.0;
-      o.connect(g); g.connect(audio.master);
+      o.connect(g);
+      g.connect(audio.master);
       o.start();
-      audio.engineOsc = o; audio.engineGain = g;
+      audio.engineOsc = o;
+      audio.engineGain = g;
     },
     engineSet(speedFrac) {
       if (!audio.engineOsc) return;
@@ -79,8 +105,13 @@ export function makeAudio() {
     },
     engineStop() {
       if (!audio.engineOsc) return;
-      try { audio.engineOsc.stop(); } catch (e) {}
-      audio.engineOsc = null; audio.engineGain = null;
+      try {
+        audio.engineOsc.stop();
+      } catch (e) {
+        /* already stopped */
+      }
+      audio.engineOsc = null;
+      audio.engineGain = null;
     },
     sirenTick(dt) {
       if (!audio.ensure()) return;
@@ -93,7 +124,7 @@ export function makeAudio() {
     },
     musicStart() {
       if (audio.musicTimer || !audio.ensure()) return;
-      // Simple chiptune: A-minor bass + sparse lead, 8 steps per bar.
+      // Simple chiptune: A-minor bass + sparse lead, 16 steps per bar.
       const bass = [110, 0, 110, 0, 130.8, 0, 98, 0, 110, 0, 110, 0, 164.8, 0, 146.8, 0];
       const lead = [440, 0, 523, 659, 0, 523, 440, 0, 392, 0, 440, 523, 0, 659, 587, 0];
       audio.musicTimer = setInterval(() => {
@@ -105,7 +136,10 @@ export function makeAudio() {
       }, 210);
     },
     musicStop() {
-      if (audio.musicTimer) { clearInterval(audio.musicTimer); audio.musicTimer = null; }
+      if (audio.musicTimer) {
+        clearInterval(audio.musicTimer);
+        audio.musicTimer = null;
+      }
     },
   };
   return audio;

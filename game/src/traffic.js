@@ -13,15 +13,14 @@ export function spawnTrafficCar(G) {
   const vertical = rng() < 0.5;
   const type = pick(rng, ['sedan', 'sedan', 'taxi', 'truck', 'sport']);
   const cruise = rand(rng, 170, 260);
+  const dir = rng() < 0.5 ? 1 : -1;
   if (vertical) {
     const rx = pick(rng, G.city.roadsV);
-    const dir = rng() < 0.5 ? 1 : -1;
     return makeCar(type, rx + dir * 42, rand(rng, 150, CFG.WORLD_H - 150), dir > 0 ? Math.PI / 2 : -Math.PI / 2, {
       isTraffic: true, axis: 'v', dir, lane: dir * 42, cruise, rng,
     });
   }
   const ry = pick(rng, G.city.roadsH);
-  const dir = rng() < 0.5 ? 1 : -1;
   return makeCar(type, rand(rng, 150, CFG.BEACH_X - 150), ry + dir * 42, dir > 0 ? 0 : Math.PI, {
     isTraffic: true, axis: 'h', dir, lane: dir * 42, cruise, rng,
   });

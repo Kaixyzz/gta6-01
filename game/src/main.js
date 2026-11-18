@@ -4,7 +4,7 @@ import { makeRng } from './rng.js';
 import { makeInput } from './input.js';
 import { makeAudio } from './audio.js';
 import { buildCity } from './city.js';
-import { makePlayer, updatePlayer, exitCar, damagePlayer } from './player.js';
+import { makePlayer, updatePlayer, damagePlayer } from './player.js';
 import { makeCar, driveCar, spawnParked } from './vehicles.js';
 import { makeTraffic, updateTraffic } from './traffic.js';
 import { makePeds, updatePeds } from './pedestrians.js';
@@ -89,7 +89,15 @@ G.endRun = function (kind) {
 G.retry = function () {
   const p = G.player;
   p.hp = CFG.PLAYER_HP;
-  if (p.inCar) { p.inCar = false; p.car = null; }
+  if (p.inCar && p.car) {
+    // Leave the car behind as a parked car, so it stays in the world.
+    p.car.driver = null;
+    p.car.speed = 0;
+    p.car.parked = true;
+    G.parked.push(p.car);
+    p.inCar = false;
+    p.car = null;
+  }
   p.x = G.city.hospital.x; p.y = G.city.hospital.y;
   p.ammo = Math.max(p.ammo, 6);
   G.wanted = 0;
@@ -112,7 +120,8 @@ function startGame(useSave) {
     G.player.ammo = saved.ammo;
     G.player.x = saved.x; G.player.y = saved.y;
     G.storyComplete = !!saved.storyComplete;
-    if (!G.storyComplete && saved.missionIndex < 4) G.missions.start(saved.missionIndex);
+    if (G.storyComplete) G.missions.start(4);
+    else if (saved.missionIndex < 4) G.missions.start(saved.missionIndex);
   } else {
     clearSave();
     G.missions.start(0);
@@ -125,6 +134,9 @@ function startGame(useSave) {
 }
 
 // Staging presets for screenshots: put the game in a photogenic state.
+// The chase preset must show the wanted level AND police on screen: wanted
+// is set directly, two patrol cars are placed in clear view (one ahead, one
+// behind the player's car) and two foot officers stand nearby.
 function applyShot(shot) {
   if (!shot) return;
   const p = G.player;
@@ -141,13 +153,16 @@ function applyShot(shot) {
     G.parked.push(car);
     p.x = car.x; p.y = car.y;
     p.inCar = true; p.car = car; car.driver = 'player'; car.parked = false;
-    car.speed = 420;
-    G.police.addWanted(G, 3);
-    for (let i = 0; i < 2; i++) {
-      const pc = makeCar('police', 1800 - 260 - i * 130, 1100 + (i ? 42 : -42), 0, { isPatrol: true, rng: G.rng });
-      pc.speed = 380;
-      G.patrols.push(pc);
-    }
+    car.speed = 380;
+    G.wanted = 3;
+    G.quietT = 0;
+    const ahead = makeCar('police', 1800 + 300, 1100 - 30, Math.PI, { isPatrol: true, rng: G.rng });
+    ahead.speed = 300;
+    const behind = makeCar('police', 1800 - 300, 1100 + 30, 0, { isPatrol: true, rng: G.rng });
+    behind.speed = 320;
+    G.patrols.push(ahead, behind);
+    G.cops.push({ x: 1800 + 180, y: 1100 + 150, angle: 0 });
+    G.cops.push({ x: 1800 - 200, y: 1100 - 140, angle: 0 });
   } else if (shot === 'mission') {
     G.missions.start(1);
     p.x = G.city.goldSpot.x - 120; p.y = G.city.goldSpot.y + 30;
@@ -169,8 +184,6 @@ function update(dt) {
     G.hud.setMute(G.muted);
   }
   if (G.paused) return;
-  // Exit car with E (entering is handled inside updatePlayer).
-  if (p.inCar && input.wasPressed('KeyE')) exitCar(G);
   updatePlayer(G, dt);
   if (p.inCar && p.car) {
     const throttle = (input.down('KeyW') || input.down('ArrowUp') ? 1 : 0)

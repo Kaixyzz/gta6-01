@@ -3,7 +3,7 @@ import { CFG } from './config.js';
 import { rand, pick } from './rng.js';
 import { dist } from './city.js';
 
-const SHIRTS = ['#e74c3c', '#3498db', '#f1c40f', '#9b59b6', '#1abc9c', '#ecf0f1', '#e67e22'];
+const SHIRT_COLORS = ['#e74c3c', '#3498db', '#f1c40f', '#9b59b6', '#1abc9c', '#ecf0f1', '#e67e22'];
 
 export function makePeds(G, n) {
   const rng = G.rng;
@@ -25,7 +25,7 @@ export function makePeds(G, n) {
     G.peds.push({
       x, y, axis, dir,
       speed: rand(rng, 45, 80),
-      shirt: pick(rng, SHIRTS),
+      shirt: pick(rng, SHIRT_COLORS),
       fleeT: 0, fleeX: 0, fleeY: 0,
       wobble: rand(rng, 0, Math.PI * 2),
     });
@@ -35,7 +35,7 @@ export function makePeds(G, n) {
 export function updatePeds(G, dt) {
   const rng = G.rng;
   for (const p of G.peds) {
-    // Flee triggers: a recent gunshot, or a fast car close by.
+    // What makes them run: a recent gunshot, or a fast car close by.
     if (G.lastShot && G.time - G.lastShot.t < 1.2 && dist(p.x, p.y, G.lastShot.x, G.lastShot.y) < 260) {
       p.fleeT = 2.2;
       const d = Math.max(1, dist(p.x, p.y, G.lastShot.x, G.lastShot.y));

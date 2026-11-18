@@ -28,11 +28,11 @@ export function makePolice(G) {
       } else {
         G.quietT = 0;
       }
-      // Spawn to match the wanted level.
+      // Spawn officers and patrol cars to match the wanted level.
       const wantCops = G.wanted >= 1 ? Math.min(4, G.wanted + 1) : 0;
       const wantPatrols = G.wanted >= 2 ? Math.min(3, G.wanted - 1) : 0;
-      while (G.cops.length < wantCops) G.cops.push(spawnCop(G));
-      while (G.patrols.length < wantPatrols) G.patrols.push(spawnPatrol(G));
+      while (G.cops.length < wantCops) G.cops.push(spawnOfficer(G));
+      while (G.patrols.length < wantPatrols) G.patrols.push(spawnPatrolCar(G));
       while (G.cops.length > wantCops) G.cops.pop();
       while (G.patrols.length > wantPatrols) G.patrols.pop();
       const p = G.player;
@@ -73,7 +73,7 @@ export function makePolice(G) {
   };
 }
 
-function spawnCop(G) {
+function spawnOfficer(G) {
   const pt = randomRoadPoint(G.rng, G.city);
   // Spawn away from the player so officers arrive rather than appear on top.
   let x = pt.x, y = pt.y;
@@ -84,7 +84,7 @@ function spawnCop(G) {
   return { x, y, angle: 0 };
 }
 
-function spawnPatrol(G) {
+function spawnPatrolCar(G) {
   const pt = randomRoadPoint(G.rng, G.city);
   const car = makeCar('police', pt.x, pt.y, rand(G.rng, 0, Math.PI * 2), { isPatrol: true, rng: G.rng });
   car.speed = 200;

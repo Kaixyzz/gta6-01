@@ -10,13 +10,16 @@ export function saveGame(G) {
       missionIndex: G.missions.index,
       hp: p.hp,
       ammo: p.ammo,
-      x: p.x, y: p.y,
+      x: p.x,
+      y: p.y,
       storyComplete: G.storyComplete,
       savedAt: Date.now(),
     };
     localStorage.setItem(CFG.SAVE_KEY, JSON.stringify(data));
     return true;
-  } catch (e) { return false; }
+  } catch (e) {
+    return false;
+  }
 }
 
 export function loadGame() {
@@ -26,7 +29,9 @@ export function loadGame() {
     const d = JSON.parse(raw);
     if (typeof d.money !== 'number' || typeof d.missionIndex !== 'number') return null;
     return d;
-  } catch (e) { return null; }
+  } catch (e) {
+    return null;
+  }
 }
 
 export function hasSave() {
@@ -34,5 +39,9 @@ export function hasSave() {
 }
 
 export function clearSave() {
-  try { localStorage.removeItem(CFG.SAVE_KEY); } catch (e) {}
+  try {
+    localStorage.removeItem(CFG.SAVE_KEY);
+  } catch (e) {
+    /* storage unavailable: nothing to clear */
+  }
 }

@@ -1,8 +1,8 @@
-// SOLARA BAY — mission state machine (fresh rewrite for rebuild #3).
-// Owns the four story missions: targets, stages, payouts, toasts, and the
-// mission-complete transition. The completion order matters: the mission
-// index is advanced BEFORE the autosave, so a continued game resumes on the
-// next mission instead of replaying the one just finished.
+// SOLARA BAY — mission state machine. Four story missions: targets,
+// stages, payouts, toasts and the mission-complete transition.
+// The completion order matters: the mission index is advanced BEFORE the
+// autosave, so a continued game resumes on the NEXT mission instead of
+// replaying the one just finished.
 import { saveGame } from './save.js';
 import { spawnEnemies } from './combat.js';
 
@@ -46,7 +46,7 @@ const DEFS = [
 ];
 
 export function makeMissions(G) {
-  let spawned = false;
+  let gangSpawned = false;
 
   const m = {
     index: 0,
@@ -74,7 +74,7 @@ export function makeMissions(G) {
 
     start(i) {
       const idx = typeof i === 'number' ? i : m.index;
-      spawned = false;
+      gangSpawned = false;
       if (idx >= DEFS.length) {
         m.index = DEFS.length;
         m.stage = 'done';
@@ -90,10 +90,8 @@ export function makeMissions(G) {
       m.showToast(d.intro);
       if (idx === 2) {
         // Rival turf: four gang members hold the block.
-        if (G.enemies.length === 0) {
-          spawnEnemies(G, d.target.x, d.target.y, 4);
-        }
-        spawned = true;
+        if (G.enemies.length === 0) spawnEnemies(G, d.target.x, d.target.y, 4);
+        gangSpawned = true;
       }
       if (idx === 3) {
         // The getaway: make sure the police are already on the hunt.
@@ -113,6 +111,7 @@ export function makeMissions(G) {
       const d = DEFS[m.index];
       if (!d) return;
       G.player.money += d.payout;
+      G.audio.missionDone();
       // Advance FIRST, then save: the autosave must record the next
       // mission, or a continued game would replay the one just finished.
       m.index += 1;
@@ -122,6 +121,7 @@ export function makeMissions(G) {
         m.target = null;
         m.showToast('Story complete — Solara Bay is yours, Vex.');
         saveGame(G);
+        if (G.hud) G.hud.showWin();
         return;
       }
       m.showToast(d.done);
@@ -150,11 +150,11 @@ export function makeMissions(G) {
       }
       if (m.index === 2) {
         // Rival Heat ends when the gang is cleared, not on arrival.
-        if (spawned && G.enemies.length === 0) m.complete();
+        if (gangSpawned && G.enemies.length === 0) m.complete();
         return;
       }
-      const dist = Math.hypot(m.target.x - ax, m.target.y - ay);
-      if (dist < ARRIVE) m.complete();
+      const d = Math.hypot(m.target.x - ax, m.target.y - ay);
+      if (d < ARRIVE) m.complete();
     },
   };
   return m;

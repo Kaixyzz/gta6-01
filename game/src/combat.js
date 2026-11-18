@@ -1,6 +1,6 @@
 // Combat: the player's pistol, gang enemies, bullets and pickups.
 import { CFG } from './config.js';
-import { dist } from './city.js';
+import { dist, collideCircle } from './city.js';
 import { rand, pick } from './rng.js';
 import { damagePlayer } from './player.js';
 
@@ -16,11 +16,18 @@ export function spawnPickup(G, x, y, kind) {
 }
 
 export function spawnEnemies(G, cx, cy, n) {
+  // Spawn on the roads around the turf, never inside a building block:
+  // two on the horizontal road, two on the vertical road.
+  const spots = [
+    { x: cx - 130, y: cy },
+    { x: cx + 130, y: cy },
+    { x: cx, y: cy - 130 },
+    { x: cx, y: cy + 130 },
+  ];
   for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2;
+    const s = spots[i % spots.length];
     G.enemies.push({
-      x: cx + Math.cos(a) * 130,
-      y: cy + Math.sin(a) * 130,
+      x: s.x, y: s.y,
       hp: 3, angle: 0, shootCd: rand(G.rng, 0.4, 1.2), speed: 150,
     });
   }
@@ -46,7 +53,6 @@ export function updateCombat(G, dt) {
     });
     G.audio.shoot();
     G.lastShot = { x: p.x, y: p.y, t: G.time };
-    G.police.addWanted(G, 0); // no-op guard: shooting only counts near police
     let copNear = false;
     for (const c of G.cops) if (dist(p.x, p.y, c.x, c.y) < 700) copNear = true;
     for (const c of G.patrols) if (dist(p.x, p.y, c.x, c.y) < 700) copNear = true;
@@ -81,15 +87,17 @@ export function updateCombat(G, dt) {
     }
     if (dead) G.bullets.splice(i, 1);
   }
-  // Gang enemies: close in and shoot.
+  // Gang enemies: close in and shoot. They collide with buildings so they
+  // can never hide inside one where bullets cannot reach them.
   for (const e of G.enemies) {
-    const d = dist(e.x, e.y, p.inCar && p.car ? p.car.x : p.x, p.inCar && p.car ? p.car.y : p.y);
     const tx = p.inCar && p.car ? p.car.x : p.x;
     const ty = p.inCar && p.car ? p.car.y : p.y;
+    const d = dist(e.x, e.y, tx, ty);
     e.angle = Math.atan2(ty - e.y, tx - e.x);
     if (d > 240) {
       e.x += Math.cos(e.angle) * e.speed * dt;
       e.y += Math.sin(e.angle) * e.speed * dt;
+      collideCircle(G.city, e, 14);
     }
     e.shootCd -= dt;
     if (e.shootCd <= 0 && d < 430 && d > 40) {

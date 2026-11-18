@@ -152,7 +152,9 @@ export function drawWorld(G) {
     ctx.fillRect(t.x - 26 * pulse, 0, 52 * pulse, CFG.WORLD_H);
     ctx.strokeStyle = '#ffd700';
     ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(t.x, t.y, 34 * pulse, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, 34 * pulse, 0, Math.PI * 2);
+    ctx.stroke();
     ctx.fillStyle = '#ffd700';
     ctx.font = 'bold 15px sans-serif';
     ctx.textAlign = 'center';
@@ -163,7 +165,9 @@ export function drawWorld(G) {
     if (!inView(G, k.x, k.y, 60)) continue;
     const bob = Math.sin(k.bob) * 3;
     ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(k.x, k.y + bob, 13, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.arc(k.x, k.y + bob, 13, 0, Math.PI * 2);
+    ctx.fill();
     if (k.kind === 'health') {
       ctx.fillStyle = '#27ae60';
       ctx.fillRect(k.x - 7, k.y + bob - 2.5, 14, 5);
@@ -184,17 +188,25 @@ export function drawWorld(G) {
   for (const pd of G.peds) {
     if (!inView(G, pd.x, pd.y, 40)) continue;
     ctx.fillStyle = pd.shirt;
-    ctx.beginPath(); ctx.arc(pd.x, pd.y, 9, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.arc(pd.x, pd.y, 9, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = '#e8b98a';
-    ctx.beginPath(); ctx.arc(pd.x, pd.y - 2, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.arc(pd.x, pd.y - 2, 4, 0, Math.PI * 2);
+    ctx.fill();
   }
   // Foot officers.
   for (const c of G.cops) {
     if (!inView(G, c.x, c.y, 40)) continue;
     ctx.fillStyle = '#1c3f6e';
-    ctx.beginPath(); ctx.arc(c.x, c.y, 11, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, 11, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = '#9fc4ee';
-    ctx.beginPath(); ctx.arc(c.x, c.y - 2, 4.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.arc(c.x, c.y - 2, 4.5, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = '#ffd700';
     ctx.fillRect(c.x - 1, c.y + 4, 2, 5);
   }
@@ -202,12 +214,19 @@ export function drawWorld(G) {
   for (const e of G.enemies) {
     if (!inView(G, e.x, e.y, 40)) continue;
     ctx.fillStyle = '#8e1f1f';
-    ctx.beginPath(); ctx.arc(e.x, e.y, 12, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, 12, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = '#e8b98a';
-    ctx.beginPath(); ctx.arc(e.x, e.y - 2, 4.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.arc(e.x, e.y - 2, 4.5, 0, Math.PI * 2);
+    ctx.fill();
     ctx.strokeStyle = '#222';
     ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x + Math.cos(e.angle) * 22, e.y + Math.sin(e.angle) * 22); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(e.x, e.y);
+    ctx.lineTo(e.x + Math.cos(e.angle) * 22, e.y + Math.sin(e.angle) * 22);
+    ctx.stroke();
     // Enemy health pips.
     ctx.fillStyle = '#ff5a4d';
     for (let i = 0; i < e.hp; i++) ctx.fillRect(e.x - 12 + i * 9, e.y - 20, 7, 3);
@@ -217,27 +236,40 @@ export function drawWorld(G) {
   // Player on foot.
   if (!p.inCar) {
     ctx.fillStyle = '#14b8a6';
-    ctx.beginPath(); ctx.arc(p.x, p.y, 11, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 11, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = '#f2c48a';
-    ctx.beginPath(); ctx.arc(p.x, p.y - 2, 4.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.arc(p.x, p.y - 2, 4.5, 0, Math.PI * 2);
+    ctx.fill();
     ctx.strokeStyle = '#222';
     ctx.lineWidth = 3.5;
-    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + Math.cos(p.angle) * 24, p.y + Math.sin(p.angle) * 24); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(p.x + Math.cos(p.angle) * 24, p.y + Math.sin(p.angle) * 24);
+    ctx.stroke();
   }
   // Bullets.
   for (const b of G.bullets) {
     ctx.fillStyle = '#ffe98a';
-    ctx.beginPath(); ctx.arc(b.x, b.y, 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, 3.5, 0, Math.PI * 2);
+    ctx.fill();
   }
   for (const b of G.ebullets) {
     ctx.fillStyle = '#ff6b5e';
-    ctx.beginPath(); ctx.arc(b.x, b.y, 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, 3.5, 0, Math.PI * 2);
+    ctx.fill();
   }
   // Particles.
   for (const pt of G.particles) {
     ctx.globalAlpha = Math.max(0, pt.t / 0.2);
     ctx.fillStyle = pt.color;
-    ctx.beginPath(); ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+    ctx.fill();
   }
   ctx.globalAlpha = 1;
   ctx.restore();
@@ -253,8 +285,12 @@ export function drawWorld(G) {
       ctx.rotate(a);
       ctx.fillStyle = '#ffd700';
       ctx.beginPath();
-      ctx.moveTo(18, 0); ctx.lineTo(-10, -11); ctx.lineTo(-4, 0); ctx.lineTo(-10, 11);
-      ctx.closePath(); ctx.fill();
+      ctx.moveTo(18, 0);
+      ctx.lineTo(-10, -11);
+      ctx.lineTo(-4, 0);
+      ctx.lineTo(-10, 11);
+      ctx.closePath();
+      ctx.fill();
       ctx.restore();
       ctx.fillStyle = '#ffd700';
       ctx.font = 'bold 13px sans-serif';

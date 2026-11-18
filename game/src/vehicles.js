@@ -1,4 +1,4 @@
-// Cars: types, driving physics, parked-car spawning.
+// Cars: types, arcade driving physics, parked-car spawning.
 import { CFG } from './config.js';
 import { collideCircle } from './city.js';
 import { rand, pick } from './rng.js';
@@ -19,7 +19,7 @@ export function makeCar(type, x, y, angle, opts) {
     x, y, angle,
     speed: 0,
     w: t.w, h: t.h,
-    color: o.color || pick(o.rng || Math.random, t.colors),
+    color: o.color || pick(o.rng, t.colors),
     maxSpeed: t.max, accel: t.accel, reverse: t.reverse, turnRate: t.turn,
     parked: !!o.parked,
     owned: !!o.owned,
@@ -35,13 +35,17 @@ export function makeCar(type, x, y, angle, opts) {
   };
 }
 
-// Arcade driving: throttle accelerates, steering scales with speed, the car
-// slides a little. Building collision is axis-separated so cars slide along walls.
+// Arcade driving: throttle accelerates, steering grows with speed but eases
+// off at the top end so the car is not twitchy at full throttle. Movement
+// is axis-separated — X first, then Y — so the car slides along walls and
+// never wedges itself into a map corner.
 export function driveCar(G, car, throttle, steer, dt) {
   const t = CAR_TYPES[car.type];
-  if (throttle > 0) car.speed += t.accel * throttle * dt;
-  else if (throttle < 0) car.speed += (car.speed > 0 ? t.accel * 1.4 : t.reverse) * throttle * dt;
-  else {
+  if (throttle > 0) {
+    car.speed += t.accel * throttle * dt;
+  } else if (throttle < 0) {
+    car.speed += (car.speed > 0 ? t.accel * 1.4 : t.reverse) * throttle * dt;
+  } else {
     const drag = 260 * dt;
     car.speed = Math.abs(car.speed) <= drag ? 0 : car.speed - Math.sign(car.speed) * drag;
   }
@@ -49,19 +53,27 @@ export function driveCar(G, car, throttle, steer, dt) {
   const spd = Math.abs(car.speed);
   if (spd > 2) {
     const dirSign = car.speed >= 0 ? 1 : -1;
-    car.angle += steer * t.turn * dirSign * Math.min(1, spd / 240) * dt;
+    const grip = Math.min(1, spd / 240) / (1 + spd / 900);
+    car.angle += steer * t.turn * dirSign * grip * dt;
   }
   const nx = car.x + Math.cos(car.angle) * car.speed * dt;
   const ny = car.y + Math.sin(car.angle) * car.speed * dt;
   const beforeX = car.x, beforeY = car.y;
   car.x = nx;
-  if (collideCircle(G.city, car, 20)) { car.x = beforeX; car.speed *= 0.4; }
+  if (collideCircle(G.city, car, 20)) {
+    car.x = beforeX;
+    car.speed *= 0.4;
+  }
   car.y = ny;
-  if (collideCircle(G.city, car, 20)) { car.y = beforeY; car.speed *= 0.4; }
+  if (collideCircle(G.city, car, 20)) {
+    car.y = beforeY;
+    car.speed *= 0.4;
+  }
   car.x = Math.max(20, Math.min(CFG.WATER_X - 20, car.x));
   car.y = Math.max(20, Math.min(CFG.WORLD_H - 20, car.y));
 }
 
+// Parked cars near intersections, plus the gold sport car for mission 2.
 export function spawnParked(G) {
   const rng = G.rng;
   const spots = [];
@@ -71,6 +83,7 @@ export function spawnParked(G) {
       spots.push({ x: rx - 62, y: ry - 130, angle: Math.PI });
     }
   }
+  // Shuffle the spots with the seeded RNG.
   for (let i = spots.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
     [spots[i], spots[j]] = [spots[j], spots[i]];
@@ -78,11 +91,10 @@ export function spawnParked(G) {
   const types = ['sedan', 'sedan', 'sedan', 'taxi', 'truck', 'sport'];
   for (let i = 0; i < 14 && i < spots.length; i++) {
     const s = spots[i];
-    const type = pick(rng, types);
-    const car = makeCar(type, s.x, s.y, s.angle, { parked: true, owned: true, rng });
+    const car = makeCar(pick(rng, types), s.x, s.y, s.angle, { parked: true, owned: true, rng });
     G.parked.push(car);
   }
-  // The gold sport car for mission 2 — parked on open road, clearly marked.
+  // The gold sport car — parked on open road, clearly marked.
   const gold = makeCar('sport', G.city.goldSpot.x + 62, G.city.goldSpot.y, 0, {
     parked: true, owned: true, gold: true, color: '#ffd700', rng,
   });

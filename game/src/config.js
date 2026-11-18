@@ -1,5 +1,8 @@
-// SOLARA BAY — shared tuning constants. Plain data, no logic.
+// SOLARA BAY — tuning constants. Plain data, no logic.
+// World: 3840 x 2880 coastal city. Roads form a grid; the beach and water
+// sit on the east edge, the harbor docks in the south-west corner.
 export const CFG = {
+  // World geometry
   WORLD_W: 3840,
   WORLD_H: 2880,
   ROAD_W: 170,
@@ -8,25 +11,28 @@ export const CFG = {
   BEACH_X: 3440,
   WATER_X: 3720,
   HARBOR: { x0: 80, y0: 2620, x1: 980, y1: 2880 },
+  // Player on foot
   PLAYER_SPEED: 230,
   PLAYER_SPRINT: 345,
   PLAYER_HP: 100,
   START_MONEY: 50,
+  // Story payouts, in order. Money after each mission: 350, 850, 1650, 3150.
   PAYOUTS: [300, 500, 800, 1500],
-  MONEY_AFTER: [350, 850, 1650, 3150],
+  // Pistol
   PISTOL_AMMO_START: 12,
   PISTOL_MAX_AMMO: 48,
   PISTOL_RATE: 0.22,
   PISTOL_RANGE: 620,
   BULLET_SPEED: 900,
+  // Wanted level + police
   WANTED_MAX: 5,
   WANTED_DECAY_QUIET_S: 12,
-  WANTED_DECAY_STEP_S: 8,
   BUSTED_PENALTY: 0.2,
+  // View and save
   VIEW_W: 1280,
   VIEW_H: 720,
   SAVE_KEY: 'solara-bay-save-v1',
-  // Fixed story places — every one sits on open road, never inside a building.
+  // Story places — all on open road, never inside a building.
   SPAWN: { x: 400, y: 400 },
   GARAGE: { x: 1800, y: 2500 },
   GOLD_SPOT: { x: 1100, y: 1800 },
@@ -34,6 +40,7 @@ export const CFG = {
   TURF: { x: 2500, y: 1100 },
   SAFEHOUSE: { x: 400, y: 2500 },
   HOSPITAL: { x: 400, y: 400 },
+  // Palette
   PALETTE: {
     grass: '#5da24a',
     grass2: '#54944a',

@@ -25,18 +25,24 @@ export function drawMinimap(G, ctx) {
   for (const ry of G.city.roadsH) ctx.fillRect(X, Y + (ry - CFG.ROAD_W / 2) * sy, W, CFG.ROAD_W * sy);
   // Buildings.
   ctx.fillStyle = '#2b2f36';
-  for (const b of G.city.buildings) ctx.fillRect(X + b.x * sx, Y + b.y * sy, Math.max(1, b.w * sx), Math.max(1, b.h * sy));
+  for (const b of G.city.buildings) {
+    ctx.fillRect(X + b.x * sx, Y + b.y * sy, Math.max(1, b.w * sx), Math.max(1, b.h * sy));
+  }
   // Mission marker (pulsing gold).
   const t = G.missions.target;
   if (t && !G.storyComplete) {
     const r = 4 + Math.sin(G.time * 5) * 1.6;
     ctx.fillStyle = '#ffd700';
-    ctx.beginPath(); ctx.arc(X + t.x * sx, Y + t.y * sy, r, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.arc(X + t.x * sx, Y + t.y * sy, r, 0, Math.PI * 2);
+    ctx.fill();
   }
   // Cars, enemies, police.
   const dot = (x, y, color, r) => {
     ctx.fillStyle = color;
-    ctx.beginPath(); ctx.arc(X + x * sx, Y + y * sy, r, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.arc(X + x * sx, Y + y * sy, r, 0, Math.PI * 2);
+    ctx.fill();
   };
   for (const c of G.parked) dot(c.x, c.y, '#f2c230', 1.6);
   for (const c of G.traffic) dot(c.x, c.y, '#e8e8e8', 1.6);
@@ -48,8 +54,12 @@ export function drawMinimap(G, ctx) {
   const px = p.inCar && p.car ? p.car.x : p.x;
   const py = p.inCar && p.car ? p.car.y : p.y;
   ctx.fillStyle = '#111';
-  ctx.beginPath(); ctx.arc(X + px * sx, Y + py * sy, 3.4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath();
+  ctx.arc(X + px * sx, Y + py * sy, 3.4, 0, Math.PI * 2);
+  ctx.fill();
   ctx.fillStyle = '#fff';
-  ctx.beginPath(); ctx.arc(X + px * sx, Y + py * sy, 2.4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath();
+  ctx.arc(X + px * sx, Y + py * sy, 2.4, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }

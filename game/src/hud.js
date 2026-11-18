@@ -1,16 +1,16 @@
-// DOM HUD: health bar, money, ammo, wanted stars, objective card, toasts
-// and the menu / pause / end overlays.
+// DOM HUD: health bar, money, ammo, wanted stars, objective card, toasts,
+// plus the menu, pause, end and win overlays.
 export function makeHud() {
-  const $ = (id) => document.getElementById(id);
+  const byId = (id) => document.getElementById(id);
   const hud = {
     el: {
-      hp: $('hp-fill'), money: $('money'), ammo: $('ammo'), stars: $('stars'),
-      objective: $('objective-text'), mission: $('mission-name'), toast: $('toast'),
-      menu: $('menu'), pause: $('pause'), end: $('end'), win: $('win'),
-      endTitle: $('end-title'), endText: $('end-text'),
-      btnStart: $('btn-start'), btnContinue: $('btn-continue'),
-      btnResume: $('btn-resume'), btnRetry: $('btn-retry'),
-      btnWinContinue: $('btn-win-continue'), btnMute: $('btn-mute'),
+      hp: byId('hp-fill'), money: byId('money'), ammo: byId('ammo'), stars: byId('stars'),
+      objective: byId('objective-text'), mission: byId('mission-name'), toast: byId('toast'),
+      menu: byId('menu'), pause: byId('pause'), end: byId('end'), win: byId('win'),
+      endTitle: byId('end-title'), endText: byId('end-text'),
+      btnStart: byId('btn-start'), btnContinue: byId('btn-continue'),
+      btnResume: byId('btn-resume'), btnRetry: byId('btn-retry'),
+      btnWinContinue: byId('btn-win-continue'), btnMute: byId('btn-mute'),
     },
     update(G) {
       const p = G.player;

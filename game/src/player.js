@@ -20,16 +20,20 @@ export function updatePlayer(G, dt) {
   const p = G.player;
   const input = G.input;
   if (p.shootCd > 0) p.shootCd -= dt;
-  if (p.inCar) return;
+  // In a car, E exits — handled here alone, so one press is exactly one
+  // action and can never exit and re-enter in the same frame.
+  if (p.inCar) {
+    if (input.wasPressed('KeyE')) exitCar(G);
+    return;
+  }
   const a = input.axis();
   const len = Math.hypot(a.x, a.y);
   p.moving = len > 0;
   if (len > 0) {
     const sprint = input.down('ShiftLeft') || input.down('ShiftRight');
     const sp = sprint ? CFG.PLAYER_SPRINT : CFG.PLAYER_SPEED;
-    const nx = p.x + (a.x / len) * sp * dt;
-    const ny = p.y + (a.y / len) * sp * dt;
-    p.x = nx; p.y = ny;
+    p.x += (a.x / len) * sp * dt;
+    p.y += (a.y / len) * sp * dt;
     p.angle = Math.atan2(a.y, a.x);
     collideCircle(G.city, p, 16);
   }
@@ -67,8 +71,9 @@ export function enterCar(G, car) {
   G.audio.engineStart();
   if (car.gold) G.missions.onEnterGold(G);
   // Stealing a car in view of the law is a crime.
-  if (car.owned && policeNearby(G, 650)) addWantedSafe(G, 1);
-  else if (car.owned) addWantedSafe(G, 0);
+  if (car.owned) {
+    if (policeNearby(G, 650)) G.police.addWanted(G, 1);
+  }
 }
 
 export function exitCar(G) {
@@ -76,6 +81,11 @@ export function exitCar(G) {
   if (!p.inCar || !p.car) return;
   const car = p.car;
   car.driver = null;
+  car.speed = 0;
+  // The car stays where it is and becomes parked again, so it can be
+  // found and re-entered later instead of vanishing from the world.
+  car.parked = true;
+  G.parked.push(car);
   p.x = car.x + Math.cos(car.angle + Math.PI / 2) * 44;
   p.y = car.y + Math.sin(car.angle + Math.PI / 2) * 44;
   p.inCar = false;
@@ -88,10 +98,6 @@ function policeNearby(G, range) {
   for (const c of G.cops) if (dist(G.player.x, G.player.y, c.x, c.y) < range) return true;
   for (const c of G.patrols) if (dist(G.player.x, G.player.y, c.x, c.y) < range) return true;
   return false;
-}
-
-function addWantedSafe(G, n) {
-  if (n > 0 && G.police) G.police.addWanted(G, n);
 }
 
 export function damagePlayer(G, amount) {
