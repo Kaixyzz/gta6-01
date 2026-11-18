@@ -1,11 +1,8 @@
-// SOLARA BAY — entry program (Node 22, standard library only).
-//
-// It hands the game in: copies game/ and screenshots/ from beside this file
-// into the output directory and writes /output/dossier.json with the vendored
-// make.fun library, so the judge can read the game from the dossier alone.
-// Outside the grader, MAKEFUN_OUTPUT_DIR stands in for /output:
+// SOLARA BAY — Streets of the Bay (rebuild #10): entry program (Node 22, stdlib only).
+// Copies game/ and screenshots/ from beside this file to /output and writes
+// /output/dossier.json with the vendored make.fun library. Outside the grader,
+// MAKEFUN_OUTPUT_DIR stands in for /output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
-// The program runs twice and both runs must write identical bytes.
 
 import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -15,18 +12,15 @@ import { buildDossier } from './vendor/makefun-game.ts';
 const here = fileURLToPath(new URL('.', import.meta.url));
 const out = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
-function copyTree(src, dst) {
-  mkdirSync(dst, { recursive: true });
-  if (existsSync(src)) cpSync(src, dst, { recursive: true });
-}
+mkdirSync(out, { recursive: true });
+cpSync(join(here, 'game'), join(out, 'game'), { recursive: true });
+mkdirSync(join(out, 'screenshots'), { recursive: true });
+if (existsSync(join(here, 'screenshots'))) cpSync(join(here, 'screenshots'), join(out, 'screenshots'), { recursive: true });
 
-copyTree(join(here, 'game'), join(out, 'game'));
-copyTree(join(here, 'screenshots'), join(out, 'screenshots'));
-
-// The scorer's own caps: only text_max_bytes shapes the dossier's bytes; the
-// rest refuse an entry the scorer would refuse (more than 4 screenshots or one
-// over 256 KiB; more than 993 files in game/ or 48 MiB of game files in all,
-// or a path under game/ over 1000 bytes).
+// The scorer's own caps (reference/gate.json): only text_max_bytes shapes the bytes;
+// the others refuse an entry the scorer would refuse (more than 4 screenshots or one
+// over 256 KiB; more than 993 files in game/ or 48 MiB of game files, in all, or a
+// path under game/ over 1000 bytes).
 writeFileSync(
   join(out, 'dossier.json'),
   buildDossier(out, {
