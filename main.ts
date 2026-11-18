@@ -1,42 +1,38 @@
-// SOLARA BAY — Streets of the Bay: entry program for make.fun gta6-01.
-//
-// Copies game/ and screenshots/ from this repository into the output
-// directory, then writes dossier.json with the kit's buildDossier. Running it
-// twice produces byte-identical output: the copies are exact and the dossier
-// is a deterministic function of the copied files.
-//
-//   MAKEFUN_OUTPUT_DIR=out node main.ts
-//
-// Without MAKEFUN_OUTPUT_DIR it writes to /output, as the grader does.
+// SOLARA BAY entry program (Node 22, standard library only): it hands the game
+// in. It copies this directory's game/ and screenshots/ into the output
+// directory and writes output/dossier.json with the vendored make.fun library,
+// which is the summary the judge reads. Outside the grader, MAKEFUN_OUTPUT_DIR
+// stands in for /output:
+//   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 
-import { buildDossier } from './vendor/makefun-game.ts';
-import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { buildDossier } from './vendor/makefun-game.ts';
 
-const repoRoot = dirname(fileURLToPath(import.meta.url));
+const repoRoot = fileURLToPath(new URL('.', import.meta.url));
 const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
-const dossierCaps = {
-  text_max_bytes: 163840,
-  screenshots: { max: 4, max_bytes: 262144 },
-  game_max_files: 993,
-  game_max_bytes: 50331648,
-};
 
-function copyFresh(name) {
-  const from = join(repoRoot, name);
-  const to = join(outDir, name);
-  if (!existsSync(from)) throw new Error(`missing ${name}/ in ${repoRoot}`);
-  if (existsSync(to)) rmSync(to, { recursive: true, force: true });
-  cpSync(from, to, { recursive: true });
-  return to;
+function handIn() {
+  mkdirSync(outDir, { recursive: true });
+  cpSync(join(repoRoot, 'game'), join(outDir, 'game'), { recursive: true });
+  const shotsOut = join(outDir, 'screenshots');
+  mkdirSync(shotsOut, { recursive: true });
+  if (existsSync(join(repoRoot, 'screenshots'))) {
+    cpSync(join(repoRoot, 'screenshots'), shotsOut, { recursive: true });
+  }
+  // The scorer's own caps: only text_max_bytes shapes the bytes; the others
+  // refuse an entry the scorer would refuse (more than 4 screenshots or one
+  // over 256 KiB; more than 993 files in game/ or 48 MiB of game files in all,
+  // or a path under game/ over 1000 bytes).
+  const dossier = buildDossier(outDir, {
+    text_max_bytes: 163840,
+    screenshots: { max: 4, max_bytes: 262144 },
+    game_max_files: 993,
+    game_max_bytes: 50331648,
+    game_path_max_bytes: 1000,
+  });
+  writeFileSync(join(outDir, 'dossier.json'), dossier);
 }
 
-mkdirSync(outDir, { recursive: true });
-copyFresh('game');
-copyFresh('screenshots');
-
-const dossier = buildDossier(outDir, dossierCaps);
-const dossierPath = join(outDir, 'dossier.json');
-writeFileSync(dossierPath, dossier);
-console.log(`SOLARA BAY entry written to ${outDir} (dossier ${dossier.length} bytes)`);
+handIn();
