@@ -4,55 +4,58 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SOLARA BAY — Streets of the Bay</title>
-<link rel="icon" href="data:,">
-<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20fill%3D%22%23ffd60a%22%2F%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2216%22%20r%3D%228%22%20fill%3D%22%23ff8c00%22%2F%3E%3C%2Fsvg%3E">
+<link rel="stylesheet" href="./style.css">
 </head>
 <body>
 <div id="wrap">
   <canvas id="game" width="1280" height="720"></canvas>
+
   <div id="overlay-title" class="overlay">
     <div class="panel">
       <h1>SOLARA BAY</h1>
       <p class="tagline">Streets of the Bay</p>
-      <p>A small-time driver works their way up the coastal city: steal cars, outrun the police, and finish six story jobs to become King of the Bay.</p>
-      <div class="controls">
-        <p><b>W A S D</b> — move / drive &nbsp; <b>E</b> — enter / exit car</p>
-        <p><b>Mouse</b> — aim &nbsp; <b>Click</b> — shoot &nbsp; <b>P / Esc</b> — pause</p>
-      </div>
-      <button id="btn-start">Press ENTER to start</button>
-      <button id="btn-continue" class="hidden">Continue</button>
+      <p class="story">A small-time driver works their way up in a sun-soaked coastal city: steal cars, outrun the police, and finish six story jobs to rule the bay.</p>
+      <p class="controls">WASD / arrows — walk &amp; drive &nbsp;·&nbsp; E — enter / exit car &nbsp;·&nbsp; Mouse — aim, click — shoot &nbsp;·&nbsp; P / Esc — pause</p>
+      <button id="btn-start" class="big">Start</button>
+      <button id="btn-continue" class="big hidden">Continue</button>
     </div>
   </div>
+
   <div id="overlay-pause" class="overlay hidden">
     <div class="panel">
-      <h1>Paused</h1>
-      <p>Take a breath. The city waits.</p>
-      <button id="btn-resume">Resume</button>
-      <button id="btn-restart">Restart mission</button>
-      <button id="btn-quit">Quit to title</button>
+      <h2>Paused</h2>
+      <button id="btn-resume" class="big">Resume</button>
+      <button id="btn-restart" class="big">Restart mission</button>
+      <button id="btn-quit" class="big">Quit to title</button>
     </div>
   </div>
+
   <div id="overlay-end" class="overlay hidden">
     <div class="panel">
-      <h1>Story Complete</h1>
-      <p>You stole the boss's car, outran the whole bay, and took the crown. King of the Bay.</p>
-      <button id="btn-again">Play again</button>
+      <h2>Story Complete</h2>
+      <p class="story">You stole the boss's sports car, outran the whole bay, and now the city is yours. King of the Bay.</p>
+      <p id="end-stats" class="stats"></p>
+      <button id="btn-again" class="big">Play again</button>
     </div>
   </div>
-  <div id="overlay-dead" class="overlay hidden">
+
+  <div id="overlay-busted" class="overlay hidden">
     <div class="panel">
-      <h1>BUSTED</h1>
-      <p>The run ends here.</p>
-      <button id="btn-retry">Try again</button>
+      <h2>BUSTED</h2>
+      <p class="story">The police caught up with you. You lose $100 and the mission restarts.</p>
+      <button id="btn-busted-ok" class="big">Keep going</button>
+    </div>
+  </div>
+
+  <div id="overlay-wasted" class="overlay hidden">
+    <div class="panel">
+      <h2>WASTED</h2>
+      <p class="story">You went down. You lose $100 and the mission restarts.</p>
+      <button id="btn-wasted-ok" class="big">Keep going</button>
     </div>
   </div>
 </div>
-<script src="js/rng.js"></script>
-<script src="js/city.js"></script>
-<script src="js/entities.js"></script>
-<script src="js/missions.js"></script>
-<script src="js/audio.js"></script>
-<script src="js/render.js"></script>
-<script src="js/game.js"></script>
+<script type="module" src="./js/game.js"></script>
 </body>
 </html>
