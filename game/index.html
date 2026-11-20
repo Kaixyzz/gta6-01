@@ -4,72 +4,53 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SOLARA BAY — Streets of the Bay</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20fill%3D%22%233fa7d6%22%2F%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2212%22%20r%3D%227%22%20fill%3D%22%23f2c230%22%2F%3E%3Crect%20x%3D%224%22%20y%3D%2222%22%20width%3D%2224%22%20height%3D%224%22%20fill%3D%22%23e8d49a%22%2F%3E%3C%2Fsvg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232ecc71'/%3E%3Ctext x='16' y='22' font-size='18' text-anchor='middle' fill='%23fff'%3ES%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div id="game-wrap">
-  <canvas id="game-canvas" width="1280" height="720"></canvas>
+<div id="wrap">
+  <canvas id="game" width="1280" height="720"></canvas>
 
   <div id="overlay-title" class="overlay">
     <div class="panel">
       <h1>SOLARA BAY</h1>
-      <p class="tagline">Streets of the Bay</p>
-      <p class="story">A small-time driver with big plans. Steal cars, outrun the
-      police, and work six jobs up the ladder of Solara Bay — from your first
-      stolen wheels to the boss's own sports car.</p>
-      <div class="controls">
-        <p><b>WASD</b> drive / walk &nbsp;•&nbsp; <b>E</b> enter &amp; exit car</p>
-        <p><b>Mouse</b> aim &nbsp;•&nbsp; <b>Click</b> shoot &nbsp;•&nbsp; <b>P</b> pause</p>
-      </div>
-      <button id="btn-start" class="big-btn">Press ENTER to start</button>
-      <button id="btn-continue" class="big-btn secondary">Continue</button>
-      <p class="foot">6 story missions • hidden stashes • motorbike &amp; truck • wanted level &amp; police chases</p>
-    </div>
-  </div>
-
-  <div id="overlay-pause" class="overlay hidden">
-    <div class="panel">
-      <h2>PAUSED</h2>
-      <button id="btn-resume" class="big-btn">Resume</button>
-      <button id="btn-restart" class="big-btn secondary">Restart mission</button>
-      <button id="btn-quit" class="big-btn secondary">Quit to title</button>
+      <p class="tag">Streets of the Bay</p>
+      <p class="story">A small-time driver works their way up the Bay: steal cars, outrun the
+      police, and pull off seven jobs — ending with the biggest casino score
+      the city has ever seen.</p>
+      <p class="controls">WASD — drive / walk &nbsp;·&nbsp; E — enter / exit car &nbsp;·&nbsp;
+      Mouse — aim, click — shoot &nbsp;·&nbsp; P — pause</p>
+      <button id="btn-start">▶ START GAME</button>
+      <button id="btn-continue">CONTINUE</button>
+      <p class="hint">7 story missions · taxi side jobs · hidden stashes · motorbike + truck</p>
     </div>
   </div>
 
   <div id="overlay-end" class="overlay hidden">
     <div class="panel">
-      <h1>Story Complete</h1>
-      <p class="story">You are the King of the Bay. Every job done, every chase
-      escaped — the city is yours.</p>
-      <p id="end-stats" class="stats"></p>
-      <button id="btn-again" class="big-btn">Play again</button>
+      <h1>STORY COMPLETE</h1>
+      <p class="story">The Big One is done. The Bay is yours, driver.</p>
+      <button id="btn-again">PLAY AGAIN</button>
     </div>
   </div>
 
-  <div id="overlay-fail" class="overlay hidden">
+  <div id="overlay-over" class="overlay hidden">
     <div class="panel">
-      <h1 id="fail-title">BUSTED!</h1>
-      <p class="story">The Bay PD caught up with you. Your last save is waiting.</p>
-      <button id="btn-retry" class="big-btn">Retry from last save</button>
+      <h1 class="over-title">WASTED</h1>
+      <p class="story">Press R to restart the mission.</p>
+      <button id="btn-retry">RETRY MISSION</button>
     </div>
   </div>
 </div>
-
-<script src="js/rng.js"></script>
-<script src="js/city.js"></script>
-<script src="js/entities.js"></script>
-<script src="js/missions.js"></script>
-<script src="js/render.js"></script>
-<script src="js/audio.js"></script>
-<script src="js/game.js"></script>
-<script>
-  (function () {
-    var canvas = document.getElementById('game-canvas');
-    var game = new window.SBGame(canvas);
-    window.__game = game;
-    game.init();
-  })();
+<script type="module">
+import { Game } from './js/game.js';
+const game = new Game(document.getElementById('game'));
+window.__game = game;
+document.getElementById('btn-start').addEventListener('click', () => game.startNew());
+document.getElementById('btn-continue').addEventListener('click', () => { if (game.loadSave()) game.started = true; });
+document.getElementById('btn-again').addEventListener('click', () => game.startNew());
+document.getElementById('btn-retry').addEventListener('click', () => game.restartMission());
+game.start();
 </script>
 </body>
 </html>
