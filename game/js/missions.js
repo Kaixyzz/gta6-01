@@ -1,78 +1,149 @@
-// Story missions for SOLARA BAY v2: six jobs, side stashes, rewards, objectives.
-import { SPOTS } from './city.js';
+// The six story missions of SOLARA BAY. Each mission is one entry: a title,
+// an objective line for the mission card, a reward, and the marker logic.
+// The driver (and the player) reads the current marker from game state.
+window.SB = window.SB || {};
+(function () {
+  const SB = window.SB;
 
-export const MISSIONS = [
-  {
-    id: 0, title: 'M1 — First Wheels', reward: 300,
-    objective: 'Steal a car and drive it to the drop-off',
-    marker: () => ({ x: SPOTS.dropoff.x, y: SPOTS.dropoff.y }),
-  },
-  {
-    id: 1, title: 'M2 — The Pickup', reward: 500,
-    objective: 'Collect the package, then deliver it',
-    marker: (stage) => stage === 0
-      ? { x: SPOTS.pickup.x, y: SPOTS.pickup.y }
-      : { x: SPOTS.delivery.x, y: SPOTS.delivery.y },
-  },
-  {
-    id: 2, title: 'M3 — Turfwars', reward: 800,
-    objective: 'Defeat 4 gang members at the turf (on foot)',
-    marker: () => ({ x: SPOTS.turf.x, y: SPOTS.turf.y }),
-  },
-  {
-    id: 3, title: 'M4 — The Getaway', reward: 1500,
-    objective: 'Grab the goods, then escape the chase to the safehouse',
-    marker: (stage) => stage === 0
-      ? { x: SPOTS.goods.x, y: SPOTS.goods.y }
-      : { x: SPOTS.safehouse.x, y: SPOTS.safehouse.y },
-  },
-  {
-    id: 4, title: 'M5 — The Score', reward: 800,
-    objective: 'Rob the bank vault, grab the cash, drive to the garage',
-    marker: (stage) => stage === 0
-      ? { x: SPOTS.bankVault.x, y: SPOTS.bankVault.y }
-      : stage === 1
-        ? { x: SPOTS.bankVault.x + 70, y: SPOTS.bankVault.y + 40 }
-        : { x: SPOTS.garage.x, y: SPOTS.garage.y },
-  },
-  {
-    id: 5, title: 'M6 — King of the Bay', reward: 1500,
-    objective: 'Steal the boss sports car, escape the biggest chase',
-    marker: (stage) => stage === 0
-      ? { x: SPOTS.marinaCar.x, y: SPOTS.marinaCar.y }
-      : { x: SPOTS.safehouse.x, y: SPOTS.safehouse.y },
-  },
-];
+  const DEFS = [
+    { title: 'First Wheels', objective: 'Steal a car and drive it to the drop-off', reward: 300 },
+    { title: 'The Pickup', objective: 'Drive to the pickup, collect the package, deliver it', reward: 500 },
+    { title: 'Turfwars', objective: 'On foot: defeat the 4 gang members at the turf', reward: 800 },
+    { title: 'The Getaway', objective: 'Grab the goods, then escape the police chase to the safehouse', reward: 1500 },
+    { title: 'The Score', objective: 'Rob the bank vault, grab the cash, drive to the garage', reward: 800 },
+    { title: 'King of the Bay', objective: 'Steal the boss sports car and escape the biggest chase yet', reward: 1500 },
+  ];
 
-export const STASH_SPOTS = [
-  { x: SPOTS.beach.x, y: SPOTS.beach.y, label: 'Beach stash' },
-  { x: SPOTS.park.x, y: SPOTS.park.y, label: 'Park stash' },
-  { x: SPOTS.marina.x, y: SPOTS.marina.y, label: 'Marina stash' },
-];
+  function markerFor(G) {
+    const P = SB.City.PLACES;
+    const mi = G.missionIndex;
+    const st = G.stage;
+    if (mi === 0) return { x: P.dropoff.x, y: P.dropoff.y };
+    if (mi === 1) return st === 0 ? { x: P.pickup.x, y: P.pickup.y } : { x: P.delivery.x, y: P.delivery.y };
+    if (mi === 2) return { x: P.turf.x, y: P.turf.y };
+    if (mi === 3) return st === 0 ? { x: P.goods.x, y: P.goods.y } : { x: P.safehouse.x, y: P.safehouse.y };
+    if (mi === 4) {
+      if (st === 0) return { x: P.bank.x, y: P.bank.y };
+      if (st === 1) return { x: P.cash.x, y: P.cash.y };
+      return { x: P.garage.x, y: P.garage.y };
+    }
+    // Mission 5 (M6): the sports car, then the safehouse.
+    return st === 0 ? { x: P.marina.x, y: P.marina.y } : { x: P.safehouse.x, y: P.safehouse.y };
+  }
 
-export function missionMarker(missionIndex, stage) {
-  const m = MISSIONS[missionIndex];
-  return m ? m.marker(stage) : null;
-}
+  function near(G, x, y, r) {
+    const dx = G.player.x - x, dy = G.player.y - y;
+    return dx * dx + dy * dy <= r * r;
+  }
 
-export function missionTitle(missionIndex) {
-  const m = MISSIONS[missionIndex];
-  return m ? m.title : 'Story Complete';
-}
+  // One tick of the mission state machine. Called from the game loop with
+  // the live game state; it may complete a mission, change stage, spawn the
+  // gang or the guards, or raise the wanted level for a chase.
+  function update(G, dt) {
+    const P = SB.City.PLACES;
+    const mi = G.missionIndex;
+    if (G.storyComplete || mi >= DEFS.length) return;
 
-export function missionObjective(missionIndex, stage, kills, killsNeeded) {
-  const m = MISSIONS[missionIndex];
-  if (!m) return 'You are the King of the Bay.';
-  if (missionIndex === 2) return `Defeat the gang: ${kills}/${killsNeeded} down`;
-  if (missionIndex === 4 && stage === 0) return `Defeat the guards: ${kills}/${killsNeeded} down`;
-  if (missionIndex === 4 && stage === 1) return 'Grab the cash from the vault';
-  if (missionIndex === 4 && stage === 2) return 'Drive the getaway car to the garage (wanted 2★)';
-  if (missionIndex === 3 && stage === 1) return 'Escape the police — reach the safehouse!';
-  if (missionIndex === 5 && stage === 1) return 'Escape the biggest chase — reach the safehouse!';
-  if (missionIndex === 0) return 'Steal a car (E) and drive to the drop-off';
-  if (missionIndex === 1 && stage === 0) return 'Drive to the pickup point';
-  if (missionIndex === 1 && stage === 1) return 'Deliver the package';
-  if (missionIndex === 3 && stage === 0) return 'Drive to the goods pickup';
-  if (missionIndex === 5 && stage === 0) return 'Steal the boss sports car at the marina';
-  return m.objective;
-}
+    if (mi === 0) {
+      if (near(G, P.dropoff.x, P.dropoff.y, 85)) complete(G);
+      return;
+    }
+    if (mi === 1) {
+      if (G.stage === 0 && near(G, P.pickup.x, P.pickup.y, 75)) {
+        G.stage = 1;
+        G.note('Package collected — deliver it');
+      } else if (G.stage === 1 && near(G, P.delivery.x, P.delivery.y, 75)) {
+        complete(G);
+      }
+      return;
+    }
+    if (mi === 2) {
+      if (!G.gangSpawned && near(G, P.turf.x, P.turf.y, 320)) {
+        G.gangSpawned = true;
+        const offs = [[-90, -70], [80, -90], [-70, 90], [90, 70]];
+        for (const o of offs) {
+          G.enemies.push(SB.Entities.makeEnemy(P.turf.x + o[0], P.turf.y + o[1]));
+        }
+        G.note('Gang members at the turf — take them down');
+      }
+      if (G.gangSpawned && G.kills >= 4) complete(G);
+      return;
+    }
+    if (mi === 3) {
+      if (G.stage === 0 && near(G, P.goods.x, P.goods.y, 75)) {
+        G.stage = 1;
+        G.wanted = 3;
+        G.spawnChase(3, 2);
+        G.note('Police chase! Lose them and reach the safehouse');
+      } else if (G.stage === 1 && near(G, P.safehouse.x, P.safehouse.y, 85)) {
+        complete(G);
+      }
+      return;
+    }
+    if (mi === 4) {
+      if (G.stage === 0) {
+        if (!G.guardsSpawned && near(G, P.bank.x, P.bank.y, 320)) {
+          G.guardsSpawned = true;
+          const offs = [[-80, -60], [70, -80], [0, 90]];
+          for (const o of offs) {
+            G.enemies.push(SB.Entities.makeEnemy(P.bank.x + o[0], P.bank.y + o[1]));
+          }
+          G.note('Bank guards — take them down');
+        }
+        if (G.guardsSpawned && G.kills >= 3) {
+          G.stage = 1;
+          G.note('Vault clear — grab the cash');
+        }
+      } else if (G.stage === 1 && near(G, P.cash.x, P.cash.y, 60)) {
+        G.stage = 2;
+        G.wanted = 2;
+        G.spawnChase(2, 1);
+        G.note('Cash grabbed! Getaway — drive to the garage');
+      } else if (G.stage === 2 && near(G, P.garage.x, P.garage.y, 85)) {
+        complete(G);
+      }
+      return;
+    }
+    if (mi === 5) {
+      if (G.stage === 1 && near(G, P.safehouse.x, P.safehouse.y, 85)) {
+        complete(G);
+      }
+      return;
+    }
+  }
+
+  // Entering the boss sports car starts the final chase. Any other car at
+  // the marina does nothing special.
+  function onEnterBossCar(G) {
+    if (G.missionIndex !== 5 || G.stage !== 0) return;
+    G.stage = 1;
+    G.wanted = 3;
+    G.spawnChase(4, 2);
+    G.note('The boss car is yours — biggest chase yet!');
+  }
+
+  function complete(G) {
+    const def = DEFS[G.missionIndex];
+    G.money += def.reward;
+    G.hp = Math.min(100, G.hp + 40);
+    G.wanted = 0;
+    G.clearPolice();
+    G.enemies.length = 0;
+    G.missionIndex += 1;
+    G.stage = 0;
+    G.kills = 0;
+    G.gangSpawned = false;
+    G.guardsSpawned = false;
+    G.save();
+    if (G.missionIndex >= DEFS.length) {
+      G.storyComplete = true;
+      G.state = 'complete';
+      G.note('Story Complete');
+      G.save();
+    } else {
+      G.note('Mission complete: ' + def.title + '  +$' + def.reward);
+    }
+  }
+
+  SB.Missions = { DEFS: DEFS, markerFor: markerFor, update: update, onEnterBossCar: onEnterBossCar };
+})();
