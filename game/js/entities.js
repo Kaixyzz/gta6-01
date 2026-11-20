@@ -1,185 +1,160 @@
-// Entities for SOLARA BAY: cars, pedestrians, police, enemies, bullets,
-// pickups, particles and skid marks. Each factory returns a plain object;
-// the update functions live here too so game.js stays readable.
-window.SB = window.SB || {};
-(function () {
-  const SB = window.SB;
+// Moving things: the player, cars, pedestrians, enemies, police.
+// Everything here is plain data plus small step functions; the game loop
+// in game.js owns the rules (missions, wanted, spawning).
+import { pointInBuilding } from './city.js';
 
-  const CAR_STATS = {
-    sedan: { top: 330, accel: 260, turn: 2.6, grip: 0.94, len: 46, wid: 22 },
-    sports: { top: 385, accel: 320, turn: 3.0, grip: 0.96, len: 46, wid: 22 },
-    bike: { top: 405, accel: 340, turn: 3.4, grip: 0.88, len: 38, wid: 14 },
-    truck: { top: 235, accel: 170, turn: 2.0, grip: 0.97, len: 62, wid: 26 },
-  };
+export const TAU = Math.PI * 2;
 
-  function makeCar(def) {
-    const st = CAR_STATS[def.type] || CAR_STATS.sedan;
-    return {
-      x: def.x, y: def.y, angle: def.angle || 0,
-      speed: 0, type: def.type, color: def.color,
-      parked: !!def.parked, boss: !!def.boss,
-      top: st.top, accel: st.accel, turn: st.turn, grip: st.grip,
-      len: st.len, wid: st.wid, skidT: 0,
-    };
-  }
+export function normAngle(a) {
+  while (a > Math.PI) a -= TAU;
+  while (a < -Math.PI) a += TAU;
+  return a;
+}
 
-  function makePed(def) {
-    return {
-      x: def.x, y: def.y, angle: def.angle, speed: def.speed,
-      shirt: def.shirt, down: false, downT: 0, fleeT: 0, wanderT: 0,
-    };
-  }
+export function dist(ax, ay, bx, by) {
+  return Math.hypot(ax - bx, ay - by);
+}
 
-  function makeCop(x, y, patrol) {
-    if (patrol) {
-      const c = makeCar({ x: x, y: y, angle: 0, type: 'sedan', color: '#1a1a2e', parked: false });
-      c.patrol = true;
-      c.speed = 0;
-      return c;
-    }
-    return { x: x, y: y, angle: 0, speed: 95, touchT: 0, foot: true };
-  }
-
-  function makeEnemy(x, y) {
-    return { x: x, y: y, angle: 0, hp: 3, speed: 105, shootT: 1 + Math.random() * 0.8, strafe: Math.random() < 0.5 ? 1 : -1 };
-  }
-
-  function makePickup(x, y, kind) {
-    return { x: x, y: y, kind: kind };
-  }
-
-  function makeBullet(x, y, angle, speed, from) {
-    return { x: x, y: y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, from: from, life: 0.9, dmg: from === 'enemy' ? 3 : 1 };
-  }
-
-  function makeParticle(x, y, vx, vy, life, color, size) {
-    return { x: x, y: y, vx: vx, vy: vy, life: life, maxLife: life, color: color, size: size };
-  }
-
-  // Arcade car physics: accelerate / brake / reverse, steering that bites
-  // harder at speed, and a little lateral slip so hard turns leave marks.
-  // Returns true when the car scraped something (for shake + sound).
-  function driveCar(car, input, dt, city) {
-    const st = car;
-    const forward = { x: Math.cos(car.angle), y: Math.sin(car.angle) };
-    let lat = 0;
-    if (input.up) st.speed += st.accel * dt;
-    if (input.down) st.speed -= (st.speed > 5 ? 320 : 190) * dt;
-    if (!input.up && !input.down) st.speed -= Math.sign(st.speed) * 140 * dt;
-    if (Math.abs(st.speed) < 4 && !input.up && !input.down) st.speed = 0;
-    st.speed = Math.max(-st.top * 0.45, Math.min(st.top, st.speed));
-    const spd = Math.abs(st.speed);
-    const steer = (input.left ? -1 : 0) + (input.right ? 1 : 0);
-    if (steer !== 0 && spd > 1) {
-      const dir = st.speed >= 0 ? 1 : -1;
-      car.angle += steer * st.turn * dt * dir * Math.min(1, spd / 120);
-    }
-    // Velocity follows the heading, with a slip factor for drift feel.
-    const vx = forward.x * st.speed;
-    const vy = forward.y * st.speed;
-    const px = car.x, py = car.y;
-    car.x += vx * dt;
-    car.y += vy * dt;
-    lat = Math.abs((car.x - px) * -Math.sin(car.angle) + (car.y - py) * Math.cos(car.angle));
-    const blocked = city.collideCircle(city.data.buildings, car, car.len * 0.42);
-    if (blocked) {
-      const hitSpeed = Math.abs(st.speed);
-      st.speed *= 0.35;
-      if (hitSpeed > 120) return { scraped: true, hard: hitSpeed > 260, lat: lat };
-      return { scraped: true, hard: false, lat: lat };
-    }
-    return { scraped: false, hard: false, lat: lat };
-  }
-
-  // A pedestrian strolls along a sidewalk; when frightened it runs away.
-  function updatePed(p, dt, player, city, rng) {
-    if (p.down) {
-      p.downT -= dt;
-      return;
-    }
-    p.wanderT -= dt;
-    if (p.fleeT > 0) {
-      p.fleeT -= dt;
-      const dx = p.x - player.x, dy = p.y - player.y;
-      const d = Math.hypot(dx, dy) || 1;
-      p.angle = Math.atan2(dy / d, dx / d);
-      const sp = 210;
-      p.x += Math.cos(p.angle) * sp * dt;
-      p.y += Math.sin(p.angle) * sp * dt;
-    } else {
-      if (p.wanderT <= 0) {
-        p.wanderT = 2 + rng.next() * 3;
-        // Turn at random to another sidewalk direction.
-        p.angle += rng.pick([-Math.PI / 2, 0, Math.PI / 2, Math.PI]);
+// Push a circle out of every building rectangle it overlaps. Returns
+// true when a collision happened (used for crash shake and sound).
+export function collideBuildings(buildings, e, r) {
+  let hit = false;
+  for (const b of buildings) {
+    const cx = Math.max(b.x, Math.min(e.x, b.x + b.w));
+    const cy = Math.max(b.y, Math.min(e.y, b.y + b.h));
+    const dx = e.x - cx;
+    const dy = e.y - cy;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < r * r) {
+      hit = true;
+      if (d2 > 0.0001) {
+        const d = Math.sqrt(d2);
+        e.x = cx + (dx / d) * r;
+        e.y = cy + (dy / d) * r;
+      } else {
+        // Dead centre: push out along the smallest penetration axis.
+        const pl = e.x - b.x;
+        const pr = b.x + b.w - e.x;
+        const pt = e.y - b.y;
+        const pb = b.y + b.h - e.y;
+        const m = Math.min(pl, pr, pt, pb);
+        if (m === pl) e.x = b.x - r;
+        else if (m === pr) e.x = b.x + b.w + r;
+        else if (m === pt) e.y = b.y - r;
+        else e.y = b.y + b.h + r;
       }
-      p.x += Math.cos(p.angle) * p.speed * dt;
-      p.y += Math.sin(p.angle) * p.speed * dt;
     }
-    city.collideCircle(city.data.buildings, p, 10);
-    if (p.x < 20) p.x = 20;
-    if (p.y < 20) p.y = 20;
-    if (p.x > 2380) p.x = 2380;
-    if (p.y > 1740) p.y = 1740;
   }
+  return hit;
+}
 
-  // A foot cop runs at the player; returns true while it keeps touching.
-  function updateFootCop(cop, dt, player, city) {
-    const dx = player.x - cop.x, dy = player.y - cop.y;
-    const d = Math.hypot(dx, dy) || 1;
-    cop.angle = Math.atan2(dy, dx);
-    cop.x += (dx / d) * cop.speed * dt;
-    cop.y += (dy / d) * cop.speed * dt;
-    city.collideCircle(city.data.buildings, cop, 10);
-    return d < 30;
-  }
+export function clampToWorld(e, w, h, r) {
+  e.x = Math.max(r, Math.min(w - r, e.x));
+  e.y = Math.max(r, Math.min(h - r, e.y));
+}
 
-  // A patrol car steers at the player's car and tries to ram it.
-  function updatePatrol(car, dt, target, city) {
-    const dx = target.x - car.x, dy = target.y - car.y;
-    const desired = Math.atan2(dy, dx);
-    let diff = desired - car.angle;
-    while (diff > Math.PI) diff -= Math.PI * 2;
-    while (diff < -Math.PI) diff += Math.PI * 2;
-    car.angle += Math.max(-2.4 * dt, Math.min(2.4 * dt, diff * 2.2));
-    car.speed = Math.min(295, car.speed + 240 * dt);
-    car.x += Math.cos(car.angle) * car.speed * dt;
-    car.y += Math.sin(car.angle) * car.speed * dt;
-    city.collideCircle(city.data.buildings, car, car.len * 0.42);
-    const td = Math.hypot(target.x - car.x, target.y - car.y);
-    return td < 46;
-  }
-
-  // A gang member or guard walks up to shooting range, strafes, and fires.
-  function updateEnemy(e, dt, player, city, rng) {
-    const dx = player.x - e.x, dy = player.y - e.y;
-    const d = Math.hypot(dx, dy) || 1;
-    e.angle = Math.atan2(dy, dx);
-    if (d > 210) {
-      e.x += (dx / d) * e.speed * dt;
-      e.y += (dy / d) * e.speed * dt;
-    } else {
-      // Strafe sideways so the fight moves around.
-      const sx = Math.cos(e.angle + Math.PI / 2) * e.strafe;
-      const sy = Math.sin(e.angle + Math.PI / 2) * e.strafe;
-      e.x += sx * e.speed * 0.4 * dt;
-      e.y += sy * e.speed * 0.4 * dt;
-      if (rng.chance(dt * 0.4)) e.strafe *= -1;
-    }
-    city.collideCircle(city.data.buildings, e, 11);
-    e.shootT -= dt;
-    if (e.shootT <= 0 && d < 520) {
-      e.shootT = 1.4 + rng.next() * 0.5;
-      const spread = (rng.next() - 0.5) * 0.24;
-      return makeBullet(e.x + Math.cos(e.angle) * 16, e.y + Math.sin(e.angle) * 16, e.angle + spread, 430, 'enemy');
-    }
-    return null;
-  }
-
-  SB.Entities = {
-    CAR_STATS: CAR_STATS, makeCar: makeCar, makePed: makePed,
-    makeCop: makeCop, makeEnemy: makeEnemy, makePickup: makePickup,
-    makeBullet: makeBullet, makeParticle: makeParticle,
-    driveCar: driveCar, updatePed: updatePed, updateFootCop: updateFootCop,
-    updatePatrol: updatePatrol, updateEnemy: updateEnemy,
+export function makePlayer(x, y) {
+  return {
+    x, y, angle: -Math.PI / 2, hp: 100, ammo: 24,
+    inCar: null, speed: 0, radius: 14,
   };
-})();
+}
+
+export function makeCar(x, y, kind, color, angle) {
+  const dims = { car: [34, 18], bike: [26, 12], truck: [46, 20], patrol: [34, 18], sports: [36, 18] }[kind] || [34, 18];
+  return {
+    x, y, angle: angle || 0, speed: 0, kind, color,
+    w: dims[0], h: dims[1], parked: true, traffic: false,
+    driver: null, radius: 16, steer: 0, stuckT: 0,
+  };
+}
+
+export function makePed(x, y, axis, dir, color) {
+  return {
+    x, y, axis, dir, color, speed: 42, radius: 10,
+    fleeT: 0, fleeX: 0, fleeY: 0, angle: axis === 'v' ? (dir > 0 ? Math.PI / 2 : -Math.PI / 2) : (dir > 0 ? 0 : Math.PI),
+  };
+}
+
+export function makeEnemy(x, y, kind) {
+  return {
+    x, y, kind, hp: 3, radius: 13, angle: 0,
+    shootT: 1 + Math.random() * 0.8, moveT: 0, targetAngle: 0,
+  };
+}
+
+export function makeFootCop(x, y) {
+  return { x, y, radius: 12, speed: 95, bustT: 0, stunT: 0, angle: 0 };
+}
+
+export function makePatrol(x, y, angle) {
+  const c = makeCar(x, y, 'patrol', '#f8f9fa', angle);
+  c.parked = false;
+  c.driver = 'police';
+  c.radius = 16;
+  return c;
+}
+
+// Drive a car one step: acceleration, steering, drift. Returns true when
+// the car scraped a building. Braking is deliberately strong: a car that
+// has just reversed must stop quickly when the driver changes direction,
+// or its leftover reverse momentum steers the nose the wrong way while it
+// bleeds off and the car wobbles forever instead of turning around.
+export function stepCar(car, buildings, worldW, worldH, dt, input) {
+  const top = car.kind === 'bike' ? 320 : car.kind === 'truck' ? 200 : car.kind === 'sports' ? 300 : 260;
+  const accel = car.kind === 'bike' ? 420 : car.kind === 'truck' ? 260 : 340;
+  if (input.up) {
+    // Forward while still rolling backward brakes hard first.
+    car.speed += car.speed < 0 ? 700 * dt : accel * dt;
+  }
+  if (input.down) {
+    // Backing off while rolling forward brakes hard first.
+    car.speed -= car.speed > 0 ? 700 * dt : 200 * dt;
+  }
+  if (!input.up && !input.down) {
+    // Coasting stops the car fast, so a direction change never fights
+    // a long tail of reverse momentum.
+    const dec = 320;
+    if (Math.abs(car.speed) <= dec * dt) car.speed = 0;
+    else car.speed -= Math.sign(car.speed) * dec * dt;
+  }
+  if (Math.abs(car.speed) < 4 && !input.up && !input.down) car.speed = 0;
+  car.speed = Math.max(-80, Math.min(top, car.speed));
+  let steerRate = 2.4 * (1 - Math.min(0.30, Math.abs(car.speed) / top * 0.30));
+  // Steering stays strong at speed: a weak high-speed steer lets a small
+  // drift carry the car off the road into a building face, where it then
+  // scrapes instead of driving. A car that cannot correct a 15-degree
+  // drift at speed is not fun to drive.
+  // Reversing steers more gently: a hard reverse swing is what starts
+  // the wobble, and a slow car turns tighter anyway.
+  if (car.speed < 0) steerRate = Math.min(steerRate, 1.4);
+  const dirSign = car.speed >= 0 ? 1 : -1;
+  if (input.left) car.angle -= steerRate * dt * dirSign;
+  if (input.right) car.angle += steerRate * dt * dirSign;
+  car.angle = normAngle(car.angle);
+  const nx = car.x + Math.cos(car.angle) * car.speed * dt;
+  const ny = car.y + Math.sin(car.angle) * car.speed * dt;
+  car.x = nx;
+  car.y = ny;
+  const hit = collideBuildings(buildings, car, 15);
+  if (hit && Math.abs(car.speed) > 60) car.speed *= 0.45;
+  clampToWorld(car, worldW, worldH, 18);
+  return hit;
+}
+
+// Walk one step on foot.
+export function stepWalk(p, buildings, worldW, worldH, dt, vx, vy) {
+  const len = Math.hypot(vx, vy);
+  if (len > 0) {
+    const sp = 170;
+    p.x += (vx / len) * sp * dt;
+    p.y += (vy / len) * sp * dt;
+    p.angle = Math.atan2(vy, vx);
+  }
+  collideBuildings(buildings, p, p.radius);
+  clampToWorld(p, worldW, worldH, p.radius);
+}
+
+export function pointInBuildingAt(buildings, x, y) {
+  return pointInBuilding(buildings, x, y);
+}

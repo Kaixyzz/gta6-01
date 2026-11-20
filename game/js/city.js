@@ -1,219 +1,198 @@
-// City layout for SOLARA BAY: a coastal grid city generated from one fixed
-// seed. Avenues run north-south, streets east-west; blocks between the roads
-// hold buildings, one block is a park, the south edge is a beach with water
-// beyond it and the south-east corner is the marina.
-window.SB = window.SB || {};
-(function () {
-  const SB = window.SB;
-  const WORLD_W = 2560;
-  const WORLD_H = 1920;
-  const AVENUES = [320, 640, 960, 1280, 1600, 1920, 2240];
-  const STREETS = [320, 640, 960, 1280, 1600];
-  const ROAD_HALF = 48;
-  const SEED = 20261120;
+// Solara Bay: deterministic city layout. Every coordinate comes from one
+// fixed seed, so the world is identical on every load. The road grid is
+// the one the playthrough driver navigates on: avenues and streets 320
+// apart, road half-width 48, buildings tucked inside the blocks between
+// them, never on a road.
+import { makeRng } from './rng.js';
 
-  // Named places the missions use. Every marker sits on a road or at an
-  // intersection so it can always be reached by driving or walking.
-  const PLACES = {
-    start: { x: 320, y: 420 },
-    garage: { x: 320, y: 480 },
-    dropoff: { x: 1280, y: 960 },
-    pickup: { x: 1920, y: 640 },
-    delivery: { x: 640, y: 1280 },
-    turf: { x: 1600, y: 960 },
-    goods: { x: 1920, y: 1280 },
-    safehouse: { x: 960, y: 1600 },
-    bank: { x: 1280, y: 640 },
-    cash: { x: 1280, y: 700 },
-    marina: { x: 2200, y: 1560 },
+export const WORLD_W = 2560;
+export const WORLD_H = 1920;
+export const AVENUES = [320, 640, 960, 1280, 1600, 1920, 2240];
+export const STREETS = [320, 640, 960, 1280, 1600];
+export const ROAD_HALF = 48;
+
+const PALETTE = ['#e8b04b', '#d97b4f', '#c96f5e', '#7fb069', '#5b8c8a', '#e0a458', '#b56576', '#e6cc8f'];
+
+export function buildCity() {
+  const rng = makeRng(1337);
+  const buildings = [];
+
+  const xBlocks = [[368, 592], [688, 912], [1008, 1232], [1328, 1552], [1648, 1872], [1972, 2192]];
+  const yBlocks = [[368, 592], [688, 912], [1008, 1232], [1328, 1552]];
+
+  // Named places get hand-placed buildings; the park and the turf plaza
+  // stay open ground.
+  const special = {
+    garage: { x0: 368, y0: 368 },
+    bank: { x0: 1328, y0: 1008 },
+    house: { x0: 368, y0: 1328 },
+    park: { x0: 1008, y0: 1328 },
+    plaza: { x0: 688, y0: 1328 },
   };
+  const isSpecial = (x0, y0) => Object.values(special).some((s) => s.x0 === x0 && s.y0 === y0);
 
-  const PALETTE = ['#e8b48f', '#d9a06b', '#c98f5f', '#e0c090', '#b87a4e', '#d8b48a', '#e6c9a0'];
-
-  function build() {
-    const rng = SB.makeRng(SEED);
-    const buildings = [];
-    const xBands = [[48, 272], [368, 592], [688, 912], [1008, 1232], [1328, 1552], [1648, 1872], [1968, 2192]];
-    const yBands = [[48, 272], [368, 592], [688, 912], [1008, 1232], [1328, 1552]];
-    // Special blocks, keyed "bx,by": park, garage, bank, safehouse.
-    const special = { '3,3': 'park', '0,0': 'garage', '4,1': 'bank', '3,4': 'safehouse' };
-    for (let bx = 0; bx < xBands.length; bx++) {
-      for (let by = 0; by < yBands.length; by++) {
-        const key = bx + ',' + by;
-        if (special[key]) continue;
-        const x0 = xBands[bx][0], x1 = xBands[bx][1];
-        const y0 = yBands[by][0], y1 = yBands[by][1];
-        const n = rng.int(1, 3);
-        for (let i = 0; i < n; i++) {
-          const w = rng.range(70, 150);
-          const h = rng.range(60, 140);
-          const x = rng.range(x0 + 8, Math.max(x0 + 9, x1 - w - 8));
-          const y = rng.range(y0 + 8, Math.max(y0 + 9, y1 - h - 8));
-          buildings.push({
-            x: x, y: y, w: w, h: h,
-            tier: rng.int(1, 3),
-            color: rng.pick(PALETTE),
-            roof: rng.int(0, 2),
-          });
-        }
-      }
-    }
-    // Named buildings.
-    buildings.push({ x: 120, y: 120, w: 140, h: 100, tier: 1, color: '#d9a06b', roof: 1, kind: 'garage' });
-    buildings.push({ x: 1360, y: 400, w: 160, h: 140, tier: 3, color: '#c98f5f', roof: 2, kind: 'bank' });
-    buildings.push({ x: 1040, y: 1360, w: 140, h: 120, tier: 2, color: '#e0c090', roof: 0, kind: 'safehouse' });
-
-    // Palms: beach promenade, marina strip and the park.
-    const palms = [];
-    for (let x = 120; x < 2300; x += 130) {
-      if (rng.chance(0.75)) palms.push({ x: x + rng.range(-20, 20), y: 1705 + rng.range(-8, 8) });
-    }
-    for (let y = 420; y < 1600; y += 150) {
-      if (rng.chance(0.6)) palms.push({ x: 2330 + rng.range(-8, 8), y: y });
-    }
-    for (let i = 0; i < 9; i++) {
-      palms.push({ x: rng.range(1030, 1210), y: rng.range(1030, 1210) });
-    }
-    // Beach umbrellas on the sand.
-    const umbrellas = [];
-    for (let i = 0; i < 10; i++) {
-      umbrellas.push({ x: rng.range(140, 2250), y: rng.range(1690, 1750), color: rng.pick(['#e25563', '#4a90d9', '#f2c14e', '#7bc47f']) });
-    }
-    // Boats on the water by the marina.
-    const boats = [
-      { x: 2460, y: 1820, a: 0.4 }, { x: 2510, y: 1870, a: -0.3 },
-      { x: 2430, y: 1890, a: 1.2 }, { x: 2490, y: 1790, a: 2.4 },
-    ];
-    // Park trees.
-    const trees = [];
-    for (let i = 0; i < 14; i++) {
-      trees.push({ x: rng.range(1020, 1220), y: rng.range(1020, 1220), r: rng.range(9, 15) });
-    }
-
-    // Parked cars along the roads, plus the special vehicles.
-    const parked = [];
-    const carColors = ['#c0392b', '#2e86c1', '#f1c40f', '#7d3c98', '#16a085', '#e67e22', '#95a5a6', '#34495e'];
-    for (let i = 0; i < 26; i++) {
-      let x, y;
-      if (rng.chance(0.5)) {
-        const ax = rng.pick(AVENUES);
-        x = ax + rng.pick([-30, 30]);
-        y = rng.range(360, 1560);
-      } else {
-        const sy = rng.pick(STREETS);
-        y = sy + rng.pick([-30, 30]);
-        x = rng.range(360, 2200);
-      }
-      parked.push({ x: x, y: y, angle: rng.chance(0.5) ? 0 : Math.PI / 2, type: 'sedan', color: rng.pick(carColors), parked: true });
-    }
-    // Motorbike (fast, light) and truck (slow, tough), both stealable.
-    parked.push({ x: 660, y: 348, angle: 0, type: 'bike', color: '#e74c3c', parked: true });
-    parked.push({ x: 1900, y: 1310, angle: Math.PI / 2, type: 'truck', color: '#5d6d7e', parked: true });
-    // The rival boss's gold sports car at the marina.
-    parked.push({ x: 2200, y: 1560, angle: Math.PI, type: 'sports', color: '#f7c948', parked: true, boss: true });
-    // A few ordinary parked sports cars elsewhere.
-    parked.push({ x: 960, y: 610, angle: 0, type: 'sports', color: '#8e44ad', parked: true });
-
-    // Moving traffic on the roads.
-    const traffic = [];
-    for (let i = 0; i < 14; i++) {
-      if (rng.chance(0.5)) {
-        const ax = rng.pick(AVENUES);
-        traffic.push({
-          road: 'ave', line: ax, pos: rng.range(340, 1580),
-          dir: rng.chance(0.5) ? 1 : -1, speed: rng.range(120, 180),
-          type: 'sedan', color: rng.pick(carColors), parked: false,
+  for (const [x0, x1] of xBlocks) {
+    for (const [y0, y1] of yBlocks) {
+      if (isSpecial(x0, y0)) continue;
+      const two = rng.chance(0.35);
+      if (two) {
+        const w = Math.floor((x1 - x0 - 56) / 2);
+        buildings.push({
+          x: x0 + 16, y: y0 + 20, w, h: y1 - y0 - 40,
+          height: rng.int(1, 3), color: rng.pick(PALETTE), kind: 'building',
+        });
+        buildings.push({
+          x: x0 + 32 + w, y: y0 + 20, w, h: y1 - y0 - 40,
+          height: rng.int(1, 3), color: rng.pick(PALETTE), kind: 'building',
         });
       } else {
-        const sy = rng.pick(STREETS);
-        traffic.push({
-          road: 'st', line: sy, pos: rng.range(340, 2220),
-          dir: rng.chance(0.5) ? 1 : -1, speed: rng.range(120, 180),
-          type: 'sedan', color: rng.pick(carColors), parked: false,
+        buildings.push({
+          x: x0 + 20, y: y0 + 24, w: x1 - x0 - 40, h: y1 - y0 - 48,
+          height: rng.int(1, 3), color: rng.pick(PALETTE), kind: 'building',
         });
       }
     }
-
-    // Pedestrians strolling the sidewalks.
-    const peds = [];
-    for (let i = 0; i < 42; i++) {
-      let x, y;
-      if (rng.chance(0.5)) {
-        const ax = rng.pick(AVENUES);
-        x = ax + rng.pick([-64, 64]);
-        y = rng.range(340, 1580);
-      } else {
-        const sy = rng.pick(STREETS);
-        y = sy + rng.pick([-64, 64]);
-        x = rng.range(340, 2220);
-      }
-      peds.push({ x: x, y: y, angle: rng.range(0, Math.PI * 2), speed: rng.range(28, 52), shirt: rng.pick(['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#ecf0f1']) });
-    }
-
-    // Hidden stashes: beach, park, marina.
-    const stashes = [
-      { id: 0, x: 420, y: 1720, found: false },
-      { id: 1, x: 1120, y: 1120, found: false },
-      { id: 2, x: 2340, y: 1660, found: false },
-    ];
-
-    // Static pickups on the roads: ammo by the garage and downtown, health
-    // by the turf and the bank.
-    const pickups = [
-      { x: 320, y: 560, kind: 'ammo' },
-      { x: 1280, y: 960, kind: 'ammo' },
-      { x: 1560, y: 920, kind: 'health' },
-      { x: 1240, y: 680, kind: 'health' },
-    ];
-
-    return {
-      buildings: buildings, palms: palms, umbrellas: umbrellas, boats: boats,
-      trees: trees, parked: parked, traffic: traffic, peds: peds,
-      stashes: stashes, pickups: pickups, places: PLACES,
-    };
   }
 
-  function onRoad(x, y) {
-    for (const ax of AVENUES) if (Math.abs(x - ax) <= ROAD_HALF) return true;
-    for (const sy of STREETS) if (Math.abs(y - sy) <= ROAD_HALF) return true;
-    return false;
-  }
+  // Hand-placed landmarks.
+  buildings.push({ x: 396, y: 300, w: 180, h: 120, height: 1, color: '#8a6d4b', kind: 'garage' });
+  buildings.push({ x: 1352, y: 1024, w: 200, h: 140, height: 2, color: '#e8e0cc', kind: 'bank' });
+  buildings.push({ x: 400, y: 1380, w: 160, h: 110, height: 1, color: '#7fb069', kind: 'house' });
 
-  function inWater(x, y) {
-    return y >= 1760 || x >= 2400;
-  }
+  // Palms: south promenade, east beach, and a few in the park.
+  const palms = [];
+  for (let x = 360; x <= 2200; x += 160) palms.push({ x: x + rng.int(-20, 20), y: 1724 });
+  for (let y = 420; y <= 1560; y += 180) palms.push({ x: 2320, y: y + rng.int(-20, 20) });
+  for (let i = 0; i < 7; i++) palms.push({ x: rng.range(1030, 1210), y: rng.range(1350, 1530) });
+  for (let i = 0; i < 5; i++) palms.push({ x: rng.range(420, 560), y: rng.range(420, 560) });
 
-  // Push a circle out of every building rect and out of the water; returns
-  // true when something blocked it. The circle's x/y are edited in place.
-  function collideCircle(buildings, c, r) {
-    let hit = false;
-    for (const b of buildings) {
-      const nx = Math.max(b.x, Math.min(c.x, b.x + b.w));
-      const ny = Math.max(b.y, Math.min(c.y, b.y + b.h));
-      const dx = c.x - nx, dy = c.y - ny;
-      const d2 = dx * dx + dy * dy;
-      if (d2 < r * r) {
-        hit = true;
-        if (d2 > 0.01) {
-          const d = Math.sqrt(d2);
-          c.x = nx + (dx / d) * r;
-          c.y = ny + (dy / d) * r;
-        } else {
-          c.y = b.y - r;
-        }
-      }
-    }
-    if (c.y + r > 1760) { c.y = 1760 - r; hit = true; }
-    if (c.x + r > 2400) { c.x = 2400 - r; hit = true; }
-    if (c.x - r < 0) { c.x = r; hit = true; }
-    if (c.y - r < 0) { c.y = r; hit = true; }
-    return hit;
-  }
+  // Beach umbrellas on the sand strips.
+  const umbrellas = [];
+  for (let i = 0; i < 8; i++) umbrellas.push({ x: rng.range(420, 2180), y: rng.range(1700, 1810), color: rng.pick(['#e4572e', '#f3a712', '#17bebb', '#ef476f']) });
+  for (let i = 0; i < 4; i++) umbrellas.push({ x: rng.range(2300, 2420), y: rng.range(500, 1500), color: rng.pick(['#e4572e', '#f3a712', '#17bebb', '#ef476f']) });
 
-  SB.City = {
-    WORLD_W: WORLD_W, WORLD_H: WORLD_H,
-    AVENUES: AVENUES, STREETS: STREETS, ROAD_HALF: ROAD_HALF,
-    PLACES: PLACES, build: build, onRoad: onRoad, inWater: inWater,
-    collideCircle: collideCircle,
+  // Marina docks on the east water edge, with moored boats.
+  const docks = [
+    { x: 2290, y: 300, w: 150, h: 14 },
+    { x: 2290, y: 360, w: 150, h: 14 },
+  ];
+  const boats = [
+    { x: 2470, y: 290, angle: 0.2, color: '#f5f0e1' },
+    { x: 2480, y: 350, angle: -0.15, color: '#dbe7f0' },
+    { x: 2470, y: 420, angle: 0.1, color: '#f5f0e1' },
+    { x: 1200, y: 1880, angle: 1.4, color: '#dbe7f0' },
+  ];
+
+  // Park trees.
+  const trees = [];
+  for (let i = 0; i < 14; i++) trees.push({ x: rng.range(1030, 1210), y: rng.range(1350, 1530), r: rng.range(10, 16) });
+
+  const locations = {
+    garage: { x: 320, y: 320 },
+    safehouse: { x: 320, y: 1600 },
+    bank: { x: 1280, y: 960 },
+    turf: { x: 960, y: 1280 },
+    marina: { x: 2240, y: 320 },
+    dropoff: { x: 1600, y: 640 },
+    pickup: { x: 640, y: 960 },
+    delivery: { x: 1920, y: 1280 },
+    goods: { x: 960, y: 640 },
+    cash: { x: 1310, y: 990 },
+    sportsCar: { x: 2240, y: 320 },
+    playerStart: { x: 320, y: 420 },
   };
-})();
+
+  // Hidden stashes: beach, park, marina.
+  const stashes = [
+    { x: 2400, y: 1700, got: false },
+    { x: 1120, y: 1440, got: false },
+    { x: 2330, y: 420, got: false },
+  ];
+
+  // Parked, stealable vehicles. The sports car stands alone at the marina:
+  // no other parked car is within 150 px of it, so the E key finds it first.
+  const parkedCars = [
+    { x: 352, y: 420, kind: 'car', color: '#c0392b' },
+    { x: 672, y: 640, kind: 'car', color: '#2e86ab' },
+    { x: 992, y: 352, kind: 'car', color: '#e0a458' },
+    { x: 1312, y: 992, kind: 'car', color: '#6c757d' },
+    { x: 1632, y: 672, kind: 'car', color: '#8e44ad' },
+    { x: 1952, y: 1280, kind: 'car', color: '#16a085' },
+    { x: 352, y: 1312, kind: 'car', color: '#d35400' },
+    { x: 1632, y: 1632, kind: 'car', color: '#34495e' },
+    { x: 672, y: 1312, kind: 'bike', color: '#e74c3c' },
+    { x: 1952, y: 352, kind: 'truck', color: '#f39c12' },
+    { x: 2240, y: 320, kind: 'sports', color: '#d90429' },
+  ];
+
+  // Moving traffic: five run the avenues, five the streets.
+  const trafficSpawns = [];
+  for (let i = 0; i < 5; i++) {
+    trafficSpawns.push({
+      axis: 'v', road: rng.pick(AVENUES), pos: rng.range(220, 1700),
+      dir: rng.chance(0.5) ? 1 : -1, speed: rng.range(55, 85),
+      color: rng.pick(PALETTE), kind: 'car',
+    });
+  }
+  for (let i = 0; i < 5; i++) {
+    trafficSpawns.push({
+      axis: 'h', road: rng.pick(STREETS), pos: rng.range(220, 2350),
+      dir: rng.chance(0.5) ? 1 : -1, speed: rng.range(55, 85),
+      color: rng.pick(PALETTE), kind: 'car',
+    });
+  }
+
+  // Pedestrians on the sidewalks.
+  const pedSpawns = [];
+  const pedColors = ['#f4d35e', '#ee964b', '#5b8c8a', '#b56576', '#7fb069', '#e0a458'];
+  for (let i = 0; i < 24; i++) {
+    const onAvenue = rng.chance(0.5);
+    if (onAvenue) {
+      const ax = rng.pick(AVENUES);
+      pedSpawns.push({
+        x: ax + rng.pick([-62, 62]), y: rng.range(220, 1700),
+        axis: 'v', dir: rng.chance(0.5) ? 1 : -1, color: rng.pick(pedColors),
+      });
+    } else {
+      const sy = rng.pick(STREETS);
+      pedSpawns.push({
+        x: rng.range(220, 2350), y: sy + rng.pick([-62, 62]),
+        axis: 'h', dir: rng.chance(0.5) ? 1 : -1, color: rng.pick(pedColors),
+      });
+    }
+  }
+
+  // Pickups. Ammo and health spots respawn after a while so a long fight
+  // never runs dry.
+  const pickupSpawns = [
+    { x: 380, y: 360, kind: 'ammo' },
+    { x: 1240, y: 920, kind: 'ammo' },
+    { x: 1632, y: 672, kind: 'ammo' },
+    { x: 1952, y: 1312, kind: 'ammo' },
+    { x: 360, y: 1560, kind: 'health' },
+    { x: 660, y: 340, kind: 'health' },
+  ];
+
+  return {
+    buildings,
+    palms,
+    umbrellas,
+    docks,
+    boats,
+    trees,
+    locations,
+    stashes,
+    parkedCars,
+    trafficSpawns,
+    pedSpawns,
+    pickupSpawns,
+  };
+}
+
+// True when (x, y) is inside a building rectangle.
+export function pointInBuilding(buildings, x, y) {
+  for (const b of buildings) {
+    if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return b;
+  }
+  return null;
+}
