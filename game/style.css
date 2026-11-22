@@ -1,65 +1,123 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { background: #0d1530; overflow: hidden; }
-body { font-family: 'Segoe UI', system-ui, sans-serif; color: #f2f2f2; }
-#wrap { position: relative; width: 1280px; height: 720px; margin: 0 auto; }
-#game { display: block; width: 1280px; height: 720px; }
+html, body { background: #0d0d14; height: 100%; overflow: hidden; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+#game-wrap { position: relative; width: 1280px; height: 720px; margin: 0 auto; }
+#game-canvas { display: block; width: 1280px; height: 720px; background: #69b844; }
 .hidden { display: none !important; }
 
-/* ---------- HUD ---------- */
-#hud { position: absolute; inset: 0; pointer-events: none; font-size: 14px; }
-#hud-left { position: absolute; top: 12px; left: 12px; background: rgba(8, 12, 26, 0.72); padding: 10px 12px; border-radius: 8px; min-width: 210px; }
-#hud-money { font-size: 26px; font-weight: 800; color: #7dff5e; }
-#hud-hp { margin-top: 4px; font-weight: 700; }
-#hud-hpbar-wrap { background: #333; height: 8px; border-radius: 4px; margin: 3px 0 6px; overflow: hidden; }
-#hud-hpbar { background: #51ff7a; height: 100%; width: 100%; }
-#hud-ammo, #hud-shells, #hud-fares { font-weight: 600; color: #ffe14d; }
-#hud-abilities { margin-top: 6px; font-size: 11px; color: #9db4ff; }
-#mission-card { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(8, 12, 26, 0.78); border: 1px solid #ffd23e; border-radius: 8px; padding: 10px 16px; text-align: center; min-width: 420px; }
-#mission-title { font-size: 17px; font-weight: 800; color: #ffd23e; }
-#mission-stage { font-size: 13px; font-weight: 700; color: #fff; margin-top: 2px; }
-#mission-objective { font-size: 13px; color: #d8e2ff; }
-#mission-next { font-size: 12px; color: #7dff5e; margin-top: 2px; font-style: italic; }
-#hud-right { position: absolute; top: 12px; right: 12px; text-align: right; background: rgba(8, 12, 26, 0.72); padding: 10px 12px; border-radius: 8px; }
-#hud-wanted { font-size: 24px; color: #ffd23e; letter-spacing: 3px; }
-#hud-wanted.hot { color: #ff2e2e; animation: pulse 0.6s infinite alternate; }
-@keyframes pulse { from { opacity: 1; } to { opacity: 0.45; } }
-#hud-clock { font-size: 16px; font-weight: 700; }
-#hud-district { font-size: 13px; color: #9db4ff; }
-#dispatch-list { margin-top: 8px; font-size: 12px; color: #ffb3b3; text-align: left; }
-#dispatch-list .dispatch-head { color: #ff6b6b; font-weight: 800; }
-#hud-race { position: absolute; top: 150px; left: 50%; transform: translateX(-50%); background: rgba(20, 60, 20, 0.85); border: 1px solid #7dff5e; color: #7dff5e; font-weight: 800; padding: 8px 16px; border-radius: 8px; font-size: 16px; }
-#hud-prompt { position: absolute; bottom: 170px; left: 50%; transform: translateX(-50%); background: rgba(8, 12, 26, 0.8); color: #ffe14d; font-weight: 700; padding: 8px 14px; border-radius: 8px; }
-#dialogue-box { position: absolute; bottom: 96px; left: 12px; max-width: 520px; background: rgba(8, 12, 26, 0.85); border-left: 4px solid #39d0ff; padding: 10px 14px; border-radius: 6px; font-size: 14px; line-height: 1.4; }
-#dialogue-box b { color: #39d0ff; }
-#minimap-wrap { position: absolute; right: 12px; bottom: 12px; background: rgba(8, 12, 26, 0.8); padding: 6px; border-radius: 8px; }
-#minimap { display: block; }
-.minimap-label { text-align: center; font-size: 11px; letter-spacing: 2px; color: #9db4ff; margin-top: 3px; }
+/* The HUD is display-only: it must never swallow mouse clicks meant for
+   the canvas (aiming/shooting). Buttons live in the title/pause overlays,
+   which keep their own pointer events. */
+#hud { pointer-events: none; }
 
-/* ---------- overlays ---------- */
-.overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(5, 8, 20, 0.72); z-index: 10; }
-.panel { background: rgba(10, 16, 36, 0.96); border: 1px solid #ffd23e; border-radius: 12px; padding: 28px 36px; max-width: 640px; text-align: center; max-height: 680px; overflow-y: auto; }
-.panel h1 { font-size: 56px; letter-spacing: 6px; color: #ffd23e; text-shadow: 0 3px 0 #b8860b, 0 6px 18px rgba(0, 0, 0, 0.6); }
-.panel h2 { font-size: 34px; letter-spacing: 4px; color: #ffd23e; margin-bottom: 10px; }
-.panel h3 { font-size: 15px; letter-spacing: 2px; color: #39d0ff; margin: 14px 0 6px; text-align: left; }
-.subtitle { color: #9db4ff; font-size: 14px; margin: 6px 0 14px; }
-.story { font-size: 15px; line-height: 1.5; color: #e8ecff; margin-bottom: 14px; }
-.controls { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; text-align: left; font-size: 13px; color: #c9d4ff; margin-bottom: 18px; }
-.controls b { color: #ffd23e; }
-.title-buttons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: 12px 0; }
-.title-buttons button { pointer-events: auto; background: #ffd23e; color: #141414; border: none; font-weight: 800; font-size: 15px; padding: 12px 22px; border-radius: 8px; cursor: pointer; }
-.title-buttons button:hover { background: #ffe14d; }
-#btn-continue { background: #39d0ff; }
-#btn-continue:hover { background: #7dd8ff; }
-#title-slots { display: flex; gap: 10px; margin-top: 10px; }
-.slot { flex: 1; background: rgba(255, 255, 255, 0.07); border: 1px solid #555; border-radius: 8px; padding: 10px 8px; cursor: pointer; font-size: 12px; pointer-events: auto; }
-.slot b { display: block; color: #ffd23e; margin-bottom: 4px; }
-.slot.empty { color: #888; cursor: default; }
-.foot { margin-top: 14px; font-size: 12px; color: #8a94b8; }
-.hint { margin-top: 12px; color: #9db4ff; }
+.panel {
+  position: absolute;
+  background: rgba(10, 12, 24, 0.78);
+  border: 1px solid rgba(255, 217, 77, 0.35);
+  border-radius: 10px;
+  color: #f2f2f2;
+  padding: 10px 14px;
+  backdrop-filter: blur(2px);
+}
+
+#hud-left { top: 12px; left: 12px; min-width: 240px; }
+#hud-money { font-size: 30px; font-weight: 800; color: #4dff88; line-height: 1.1; }
+#hud-hp { position: relative; height: 14px; background: #222; border-radius: 7px; margin: 6px 0; overflow: hidden; }
+#hud-hp-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #4dff88, #2fbf5f); border-radius: 7px; }
+#hud-hp-text { position: absolute; left: 6px; top: 0; font-size: 10px; line-height: 14px; font-weight: 700; color: #fff; }
+#hud-ammo, #hud-shells { font-size: 15px; font-weight: 700; color: #ffd94d; }
+#hud-abilities { font-size: 11px; color: #bfe3ff; margin-top: 4px; }
+
+#mission-card { top: 12px; left: 50%; transform: translateX(-50%); text-align: center; min-width: 420px; }
+#mc-title { font-size: 19px; font-weight: 800; color: #ffd94d; }
+#mc-stage { font-size: 13px; font-weight: 700; color: #fff; margin-top: 2px; }
+#mc-objective { font-size: 13px; color: #d8d8e0; margin-top: 2px; }
+#mc-next { font-size: 12px; color: #4dff88; font-style: italic; margin-top: 2px; }
+
+#hud-right { top: 12px; right: 12px; text-align: right; min-width: 230px; }
+#hud-stars { font-size: 22px; color: #ff3b30; letter-spacing: 3px; }
+#hud-stars.hot { animation: pulse 0.7s infinite alternate; }
+@keyframes pulse { from { opacity: 1; } to { opacity: 0.45; } }
+#hud-clock { font-size: 17px; font-weight: 800; color: #fff; }
+#hud-district { font-size: 13px; color: #7fd4ff; }
+#hud-dispatch { white-space: pre-line; font-size: 12px; color: #ffb3b3; margin-top: 6px; text-align: left; }
+
+#hud-race { top: 210px; left: 50%; transform: translateX(-50%); color: #ff9d00; font-weight: 800; font-size: 16px; }
+#hud-taxi { top: 250px; left: 50%; transform: translateX(-50%); color: #ffd94d; font-weight: 700; font-size: 14px; }
+
+#dialogue {
+  bottom: 14px; left: 12px; max-width: 560px;
+  border-left: 4px solid #37b6ff;
+  font-size: 14px;
+}
+#dialogue b { color: #37b6ff; }
+
+#minimap-wrap { position: absolute; right: 12px; bottom: 12px; }
+#minimap { display: block; border: 2px solid rgba(255, 217, 77, 0.5); border-radius: 8px; background: #12241c; }
+#minimap-label { text-align: center; font-size: 11px; letter-spacing: 2px; color: #cfd8dc; margin-top: 2px; }
+
+/* ---- title screen: sunset poster shows through, panel stays translucent --- */
+#title-screen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.title-inner {
+  width: 760px; text-align: center; color: #fff;
+  background: rgba(10, 8, 28, 0.62);
+  border: 1px solid rgba(255, 217, 77, 0.55);
+  border-radius: 16px;
+  padding: 26px 34px 20px;
+}
+.title-inner h1 {
+  font-size: 64px; font-weight: 900; letter-spacing: 6px; color: #ffd94d;
+  text-shadow: 0 0 24px rgba(255, 160, 60, 0.9), 0 3px 0 rgba(0, 0, 0, 0.4);
+}
+.subtitle { font-size: 14px; color: #bfe3ff; margin-top: 2px; }
+.story { font-size: 14px; color: #eee; margin: 12px 0; line-height: 1.45; }
+.controls {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px;
+  font-size: 13px; color: #d8d8e0; text-align: left; margin: 10px 0 16px;
+}
+.controls b { color: #ffd94d; }
+.title-inner button, .pause-inner button {
+  background: #ffd94d; color: #1a1a22; border: none; border-radius: 8px;
+  font-size: 17px; font-weight: 800; padding: 12px 26px; margin: 4px; cursor: pointer;
+}
+.title-inner button:hover, .pause-inner button:hover { background: #ffe27a; }
+#btn-continue { background: #37b6ff; color: #06121f; }
+#title-slots { display: flex; gap: 10px; margin-top: 14px; }
+#title-slots .slot {
+  flex: 1; border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 8px;
+  padding: 10px; font-size: 12px; color: #cfd8dc;
+  display: flex; flex-direction: column; gap: 2px;
+}
+#title-slots .slot b { color: #ffd94d; font-size: 13px; }
+.crew-line { font-size: 12px; color: #bfe3ff; margin-top: 12px; }
+
+/* ---- pause + stats ------------------------------------------------------- */
+#pause-screen { position: absolute; inset: 0; background: rgba(5, 6, 16, 0.55); display: flex; align-items: center; justify-content: center; }
+.pause-inner {
+  width: 680px; max-height: 680px; overflow-y: auto;
+  background: rgba(10, 12, 30, 0.94); border: 1px solid rgba(255, 217, 77, 0.55);
+  border-radius: 14px; padding: 20px 26px; color: #fff; text-align: center;
+}
+.pause-inner h2 { font-size: 34px; letter-spacing: 6px; color: #ffd94d; }
+.pause-btns { margin: 12px 0; }
+.pause-inner button { font-size: 14px; padding: 10px 18px; }
 #stats-panel { text-align: left; margin-top: 8px; }
-.stats-grid { display: grid; grid-template-columns: 110px 1fr 1fr; gap: 14px; align-items: start; }
-.stats-donut { background: rgba(255, 210, 62, 0.12); border: 2px solid #ffd23e; border-radius: 50%; width: 104px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.donut-num { font-size: 26px; font-weight: 800; color: #ffd23e; }
-.stats-donut div:last-child { font-size: 10px; letter-spacing: 1px; color: #9db4ff; }
-.stat-row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); font-size: 13px; }
-.stat-row span:last-child { font-weight: 700; color: #ffe14d; }
+#stats-panel h3 { color: #37b6ff; font-size: 14px; letter-spacing: 2px; margin: 12px 0 4px; }
+.stats-top { display: flex; gap: 18px; align-items: flex-start; }
+.donut {
+  width: 110px; height: 110px; border: 6px solid #ffd94d; border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.donut b { font-size: 26px; color: #ffd94d; }
+.donut span { font-size: 10px; color: #bfe3ff; }
+.career { flex: 1; }
+.srow { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 3px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.srow b { color: #ffd94d; }
+
+/* ---- story complete -------------------------------------------------------- */
+#overlay-end { position: absolute; inset: 0; background: rgba(5, 6, 16, 0.55); display: flex; align-items: center; justify-content: center; }
+.end-inner {
+  width: 560px; text-align: center; color: #fff;
+  background: rgba(10, 12, 30, 0.94); border: 1px solid #ffd94d; border-radius: 14px; padding: 28px;
+}
+.end-inner h2 { font-size: 36px; letter-spacing: 4px; color: #ffd94d; }
+.end-inner p { margin-top: 10px; font-size: 15px; }

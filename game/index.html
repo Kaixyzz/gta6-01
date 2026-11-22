@@ -4,71 +4,75 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SOLARA BAY — Streets of the Bay</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20fill%3D%22%232f8fc9%22%2F%3E%3Ccircle%20cx%3D%2216%22%20cy%3D%2212%22%20r%3D%227%22%20fill%3D%22%23ffd23e%22%2F%3E%3Crect%20x%3D%224%22%20y%3D%2222%22%20width%3D%2224%22%20height%3D%224%22%20fill%3D%22%23eed9a0%22%2F%3E%3C%2Fsvg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2032%2032%27%3E%3Crect%20width%3D%2732%27%20height%3D%2732%27%20rx%3D%276%27%20fill%3D%27%23f2c14e%27%2F%3E%3Ctext%20x%3D%2716%27%20y%3D%2722%27%20font-size%3D%2716%27%20text-anchor%3D%27middle%27%3ES%3C%2Ftext%3E%3C%2Fsvg%3E">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div id="wrap">
-  <canvas id="game" width="1280" height="720"></canvas>
-  <div id="hud">
-    <div id="hud-left">
+<div id="game-wrap">
+  <canvas id="game-canvas" width="1280" height="720"></canvas>
+
+  <div id="hud" class="hidden">
+    <div id="hud-left" class="panel">
       <div id="hud-money">$50</div>
-      <div id="hud-hp">HP 100</div>
-      <div id="hud-hpbar-wrap"><div id="hud-hpbar"></div></div>
+      <div id="hud-hp"><div id="hud-hp-fill"></div><span id="hud-hp-text">HP 100</span></div>
       <div id="hud-ammo">AMMO 48</div>
       <div id="hud-shells">Shells 0/8</div>
-      <div id="hud-fares"></div>
       <div id="hud-abilities">Q SWAP PLATES READY · R QUICK FIX READY · Crew 3/3</div>
     </div>
-    <div id="mission-card">
-      <div id="mission-title">M1 — First Wheels · $300</div>
-      <div id="mission-stage">STAGE 1/2 — TAKE THE CAR</div>
-      <div id="mission-objective">Steal any car — press E near one</div>
-      <div id="mission-next">NEXT: Drive it to the drop-off</div>
+
+    <div id="mission-card" class="panel">
+      <div id="mc-title">M1 — First Wheels · $300</div>
+      <div id="mc-stage">STAGE 1/2 — TAKE THE CAR</div>
+      <div id="mc-objective">Steal any car — press E next to one</div>
+      <div id="mc-next">NEXT: Drop it off</div>
     </div>
-    <div id="hud-right">
-      <div id="hud-wanted">☆☆☆</div>
+
+    <div id="hud-right" class="panel">
+      <div id="hud-stars">☆☆☆</div>
       <div id="hud-clock">16:00</div>
-      <div id="hud-district">Terrace Hills · 52 NEUTRAL</div>
-      <div id="dispatch-list" class="hidden"></div>
+      <div id="hud-district">Palm Promenade · 74 FRIENDLY</div>
+      <div id="hud-dispatch" class="hidden"></div>
     </div>
-    <div id="hud-race" class="hidden"></div>
-    <div id="hud-prompt" class="hidden"></div>
-    <div id="dialogue-box" class="hidden"></div>
-    <div id="minimap-wrap"><canvas id="minimap" width="200" height="150"></canvas><div class="minimap-label">SOLARA BAY</div></div>
+
+    <div id="hud-race" class="panel hidden"></div>
+    <div id="hud-taxi" class="panel hidden"></div>
+
+    <div id="dialogue" class="panel hidden"><b id="dlg-who"></b> — <span id="dlg-line"></span></div>
+
+    <div id="minimap-wrap">
+      <canvas id="minimap" width="200" height="140"></canvas>
+      <div id="minimap-label">SOLARA BAY</div>
+    </div>
   </div>
 
-  <div id="overlay-title" class="overlay">
-    <div class="panel title-panel">
+  <div id="title-screen">
+    <div class="title-inner">
       <h1>SOLARA BAY</h1>
-      <div class="subtitle">An original open-world crime story in a city that never existed · Keyboard &amp; mouse</div>
-      <p class="story">A sun-soaked bay city, seven districts, one crew. Steal cars, outrun the SBPD,
-      rob the bank and the casino, and take the crown of the bay — one mission at a time.</p>
+      <p class="subtitle">An original open-world crime story in a city that never existed · Keyboard &amp; mouse</p>
+      <p class="story">A sun-soaked bay city, seven districts, one crew. Steal cars, outrun the SBPD, rob the bank and the casino, and take the crown of the bay — one mission at a time.</p>
       <div class="controls">
         <div><b>WASD</b> drive / walk</div>
-        <div><b>E</b> enter / exit car</div>
         <div><b>Mouse</b> aim · <b>Click</b> shoot</div>
+        <div><b>E</b> enter / exit car</div>
         <div><b>Q</b> Swap Plates · <b>R</b> Quick Fix</div>
         <div><b>P / Esc</b> pause &amp; stats</div>
         <div><b>ENTER</b> start race / start game</div>
       </div>
-      <div class="title-buttons">
-        <button id="btn-start">▶ NEW GAME</button>
-        <button id="btn-continue">CONTINUE</button>
-      </div>
+      <button id="btn-start">▶ NEW GAME</button>
+      <button id="btn-continue">CONTINUE</button>
       <div id="title-slots">
-        <div class="slot" id="slot-0"></div>
-        <div class="slot" id="slot-1"></div>
-        <div class="slot" id="slot-2"></div>
+        <div class="slot"><b>SLOT 1</b><span>EMPTY</span></div>
+        <div class="slot"><b>SLOT 2</b><span>EMPTY</span></div>
+        <div class="slot"><b>SLOT 3</b><span>EMPTY</span></div>
       </div>
-      <div class="foot">Crew: Rosa Vega · Tomas Ibarra · Nia Solano — SBPD is watching.</div>
+      <p class="crew-line">Crew: Rosa Vega · Tomas Ibarra · Nia Solano — SBPD is watching.</p>
     </div>
   </div>
 
-  <div id="overlay-pause" class="overlay hidden">
-    <div class="panel">
+  <div id="pause-screen" class="hidden">
+    <div class="pause-inner">
       <h2>PAUSED</h2>
-      <div class="title-buttons">
+      <div class="pause-btns">
         <button id="btn-resume">RESUME</button>
         <button id="btn-restart">RESTART MISSION</button>
         <button id="btn-stats">STATS</button>
@@ -81,11 +85,10 @@
     </div>
   </div>
 
-  <div id="overlay-end" class="overlay hidden">
-    <div class="panel">
-      <h2 id="end-title">STORY COMPLETE</h2>
-      <p id="end-text"></p>
-      <p class="hint">Press ENTER to return to the title screen.</p>
+  <div id="overlay-end" class="hidden">
+    <div class="end-inner">
+      <h2>STORY COMPLETE</h2>
+      <p>You took the crown of the bay. All seven missions done — the city is yours.</p>
     </div>
   </div>
 </div>
