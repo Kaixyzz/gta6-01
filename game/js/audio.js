@@ -1,116 +1,111 @@
-// WebAudio sound for SOLARA BAY: everything is synthesized, no audio files.
-// All calls are guarded so a missing AudioContext can never throw.
-export class SoundBank {
+// WebAudio sound effects for SOLARA BAY — everything synthesised live,
+// no audio files, no network requests.
+export class AudioEngine {
   constructor() {
     this.ctx = null;
     this.engineOsc = null;
     this.engineGain = null;
-    this.sirenOsc = null;
-    this.sirenGain = null;
+    this.sirenOn = false;
     this.sirenTimer = null;
+    this.muted = false;
   }
-
   ensure() {
-    if (this.ctx) return true;
+    if (this.ctx) {
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      return;
+    }
     try {
       const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return false;
       this.ctx = new AC();
-      return true;
     } catch (e) {
-      return false;
+      this.ctx = null;
     }
   }
-
-  resume() {
-    if (this.ensure() && this.ctx.state === 'suspended') {
-      this.ctx.resume().catch(() => {});
-    }
-  }
-
-  blip(freq = 880, dur = 0.09, type = 'sine', vol = 0.12) {
-    if (!this.ensure()) return;
+  blip(freq, dur, type, vol) {
+    if (!this.ctx || this.muted) return;
     try {
       const t = this.ctx.currentTime;
       const o = this.ctx.createOscillator();
       const g = this.ctx.createGain();
-      o.type = type;
+      o.type = type || 'square';
       o.frequency.setValueAtTime(freq, t);
-      g.gain.setValueAtTime(vol, t);
+      g.gain.setValueAtTime(vol || 0.08, t);
       g.gain.exponentialRampToValueAtTime(0.001, t + dur);
       o.connect(g).connect(this.ctx.destination);
       o.start(t);
       o.stop(t + dur);
     } catch (e) {}
   }
-
-  gunshot() {
-    if (!this.ensure()) return;
+  noiseBurst(dur, vol) {
+    if (!this.ctx || this.muted) return;
     try {
       const t = this.ctx.currentTime;
-      const len = Math.floor(this.ctx.sampleRate * 0.09);
+      const len = Math.floor(this.ctx.sampleRate * dur);
       const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
-      const data = buf.getChannelData(0);
-      for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
       const src = this.ctx.createBufferSource();
       src.buffer = buf;
       const g = this.ctx.createGain();
-      g.gain.setValueAtTime(0.25, t);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+      g.gain.setValueAtTime(vol || 0.15, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + dur);
       src.connect(g).connect(this.ctx.destination);
       src.start(t);
     } catch (e) {}
   }
-
-  crash() {
-    this.blip(90, 0.18, 'sawtooth', 0.2);
+  shoot() {
+    this.noiseBurst(0.09, 0.16);
+    this.blip(180, 0.07, 'sawtooth', 0.05);
   }
-
-  engine(on, speed = 0) {
-    if (!this.ensure()) return;
+  enemyShoot() {
+    this.noiseBurst(0.07, 0.07);
+  }
+  pickup() {
+    this.blip(660, 0.09, 'sine', 0.1);
+    setTimeout(() => this.blip(990, 0.12, 'sine', 0.1), 70);
+  }
+  cash() {
+    this.blip(880, 0.1, 'sine', 0.1);
+    setTimeout(() => this.blip(1174, 0.14, 'sine', 0.1), 80);
+  }
+  missionDone() {
+    [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => this.blip(f, 0.16, 'triangle', 0.1), i * 110));
+  }
+  crash() {
+    this.noiseBurst(0.18, 0.2);
+  }
+  setEngine(speed, maxSpeed) {
+    if (!this.ctx || this.muted) return;
     try {
-      if (on && !this.engineOsc) {
+      if (!this.engineOsc) {
         this.engineOsc = this.ctx.createOscillator();
         this.engineGain = this.ctx.createGain();
         this.engineOsc.type = 'sawtooth';
-        this.engineOsc.frequency.value = 55;
-        this.engineGain.gain.value = 0.03;
-        this.engineOsc.connect(this.engineGain).connect(this.ctx.destination);
+        this.engineGain.gain.value = 0;
+        const filt = this.ctx.createBiquadFilter();
+        filt.type = 'lowpass';
+        filt.frequency.value = 420;
+        this.engineOsc.connect(filt).connect(this.engineGain).connect(this.ctx.destination);
         this.engineOsc.start();
       }
-      if (this.engineOsc) {
-        this.engineOsc.frequency.value = 50 + Math.min(1, Math.abs(speed) / 320) * 90;
-        this.engineGain.gain.value = on ? 0.03 + Math.min(1, Math.abs(speed) / 320) * 0.03 : 0;
-      }
+      const ratio = Math.max(0, Math.min(1, Math.abs(speed) / Math.max(1, maxSpeed)));
+      this.engineOsc.frequency.setValueAtTime(55 + ratio * 130, this.ctx.currentTime);
+      this.engineGain.gain.setValueAtTime(0.02 + ratio * 0.035, this.ctx.currentTime);
     } catch (e) {}
   }
-
-  siren(on) {
-    if (!this.ensure()) return;
-    try {
-      if (on && !this.sirenOsc) {
-        this.sirenOsc = this.ctx.createOscillator();
-        this.sirenGain = this.ctx.createGain();
-        this.sirenOsc.type = 'sine';
-        this.sirenOsc.frequency.value = 700;
-        this.sirenGain.gain.value = 0.025;
-        this.sirenOsc.connect(this.sirenGain).connect(this.ctx.destination);
-        this.sirenOsc.start();
-        this.sirenTimer = setInterval(() => {
-          if (this.sirenOsc) {
-            this.sirenOsc.frequency.value = this.sirenOsc.frequency.value > 900 ? 650 : 1100;
-          }
-        }, 420);
-      } else if (!on && this.sirenOsc) {
-        clearInterval(this.sirenTimer);
-        this.sirenTimer = null;
-        const o = this.sirenOsc;
-        const g = this.sirenGain;
-        this.sirenOsc = null;
-        this.sirenGain = null;
-        g.gain.value = 0;
-        o.stop();
-      }
-    } catch (e) {}
+  setSiren(on) {
+    if (on === this.sirenOn || !this.ctx) return;
+    this.sirenOn = on;
+    if (on) {
+      let hi = false;
+      this.sirenTimer = setInterval(() => {
+        if (!this.ctx || this.muted) return;
+        this.blip(hi ? 960 : 720, 0.32, 'sine', 0.045);
+        hi = !hi;
+      }, 340);
+    } else if (this.sirenTimer) {
+      clearInterval(this.sirenTimer);
+      this.sirenTimer = null;
+    }
   }
 }
