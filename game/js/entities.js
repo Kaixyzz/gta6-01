@@ -1,197 +1,312 @@
-// Entities and physics for SOLARA BAY.
-// Steering rule (proven in rebuild #16): 'd' ALWAYS turns clockwise and
-// 'a' ALWAYS turns counter-clockwise, whatever the sign of speed. Never
-// flip the turn by Math.sign(speed) — that made the car oscillate around
-// a target behind it and never arrive.
-import { RNG } from './rng.js';
-
-export function normAngle(a) {
-  while (a > Math.PI) a -= Math.PI * 2;
-  while (a < -Math.PI) a += Math.PI * 2;
-  return a;
-}
+// entities.js — cars, traffic, pedestrians, police and the helicopter.
+// Physics rules proven across rebuilds #16–#21:
+//  - 'd' ALWAYS turns clockwise and 'a' ALWAYS turns counter-clockwise,
+//    whatever the sign of speed (no Math.sign(speed) flip — that flip made
+//    the driver oscillate ~40 px around targets for 60 s).
+//  - No per-frame speed damping inside separateCars (it ground cars to a
+//    dead stop they could not escape from).
+import { clamp, normAngle, dist } from './rng.js';
+import { AVENUES, STREETS, ROAD_HALF, collideCircle, pointInBuilding, findOpenSpot, onRoad, isWater, WORLD_W, WORLD_H } from './city.js';
 
 export const CAR_TYPES = {
-  sedan: { maxSpeed: 285, accel: 210, turn: 2.6, w: 46, h: 24, color: '#e8b23a', tough: 1 },
-  bike: { maxSpeed: 330, accel: 260, turn: 3.4, w: 34, h: 14, color: '#e84a4a', tough: 0.6 },
-  truck: { maxSpeed: 210, accel: 150, turn: 2.0, w: 58, h: 28, color: '#4a7de8', tough: 1.8 },
-  sports: { maxSpeed: 340, accel: 280, turn: 3.0, w: 46, h: 24, color: '#d21f5e', tough: 1 },
-  patrol: { maxSpeed: 280, accel: 230, turn: 2.7, w: 46, h: 24, color: '#20242e', tough: 1.2 },
+  car: { len: 46, wid: 22, accel: 520, max: 330, revMax: 140, turn: 2.8 },
+  taxi: { len: 46, wid: 22, accel: 520, max: 330, revMax: 140, turn: 2.8 },
+  sports: { len: 48, wid: 22, accel: 640, max: 400, revMax: 150, turn: 3.0 },
+  truck: { len: 58, wid: 26, accel: 380, max: 250, revMax: 110, turn: 2.2 },
+  bike: { len: 38, wid: 14, accel: 620, max: 380, revMax: 130, turn: 3.4 },
+  police: { len: 46, wid: 22, accel: 560, max: 315, revMax: 140, turn: 2.9 },
 };
 
-export function makeCar(x, y, type, angle) {
-  const t = CAR_TYPES[type] || CAR_TYPES.sedan;
+export function makeCar(x, y, angle, type, color, opts = {}) {
+  const t = CAR_TYPES[type] || CAR_TYPES.car;
   return {
-    x, y, angle: angle || 0, speed: 0, type,
-    maxSpeed: t.maxSpeed, accel: t.accel, turnRate: t.turn,
-    w: t.w, h: t.h, color: t.color, tough: t.tough,
-    condition: 100, parked: true, locked: false, skid: 0,
+    x, y, angle, speed: 0, type, color,
+    len: t.len, wid: t.wid,
+    condition: 100,
+    parked: !!opts.parked,
+    isPlayer: !!opts.isPlayer,
+    isBoss: !!opts.isBoss,
+    locked: !!opts.locked,
+    route: opts.route || null,
+    routeIdx: 0,
+    target: null,
+    grace: 0,
+    hp: opts.hp || 0,
+    flash: 0,
+    skid: [],
   };
 }
 
-// Move a car one step with collision-checked sliding. Returns true if it hit something.
-export function stepCarPhysics(car, input, dt, city) {
-  const turn = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-  // Steering never flips with speed: d is always clockwise.
-  car.angle = normAngle(car.angle + turn * car.turnRate * dt * Math.min(1, 0.35 + Math.abs(car.speed) / 120));
-  if (input.up) car.speed += car.accel * dt;
-  if (input.down) car.speed -= car.accel * 0.9 * dt;
-  if (!input.up && !input.down) car.speed *= Math.max(0, 1 - 1.4 * dt);
-  const maxF = car.maxSpeed;
-  const maxR = -car.maxSpeed * 0.45;
-  if (car.speed > maxF) car.speed = maxF;
-  if (car.speed < maxR) car.speed = maxR;
-  const dx = Math.cos(car.angle) * car.speed * dt;
-  const dy = Math.sin(car.angle) * car.speed * dt;
-  const r = Math.max(car.w, car.h) / 2 - 4;
-  let hit = false;
-  const nx = car.x + dx;
-  if (city.inBounds(nx, car.y) && !city.hitsBuilding(nx, car.y, r) && !city.isWater(nx, car.y)) {
-    car.x = nx;
-  } else {
-    car.speed *= 0.55;
-    hit = true;
+// Steering: 'd' always clockwise, 'a' always counter-clockwise.
+// Turn authority scales with |speed| but never drops below 30% so the car
+// can still pivot slowly from a standstill (the driver steers with 'd'
+// alone when the heading error is moderate).
+export function stepCarPhysics(car, keys, dt, world) {
+  const t = CAR_TYPES[car.type] || CAR_TYPES.car;
+  if (keys.has('w')) car.speed += t.accel * dt;
+  if (keys.has('s')) car.speed -= t.accel * 0.9 * dt;
+  if (!keys.has('w') && !keys.has('s')) car.speed *= Math.pow(0.4, dt);
+  car.speed = clamp(car.speed, -t.revMax, t.max);
+  if (Math.abs(car.speed) < 4 && !keys.has('w') && !keys.has('s')) car.speed = 0;
+  const authority = clamp(Math.abs(car.speed) / 150, 0.3, 1);
+  let turn = 0;
+  if (keys.has('d')) turn += 1;
+  if (keys.has('a')) turn -= 1;
+  car.angle = normAngle(car.angle + turn * t.turn * authority * dt);
+  const nx = car.x + Math.cos(car.angle) * car.speed * dt;
+  const ny = car.y + Math.sin(car.angle) * car.speed * dt;
+  const fixed = collideCircle(world, nx, ny, car.len * 0.42);
+  if (Math.hypot(fixed.x - nx, fixed.y - ny) > 0.5) {
+    // hit a wall: lose some speed, keep sliding along it. Scrape damage is
+    // time-based (8/s), not per-frame — a per-frame -1 drained a full car
+    // in ~1.5s of wall sliding and made QUICK FIX look broken.
+    car.speed *= 0.6;
+    if (car.isPlayer && Math.abs(car.speed) > 60 && !(car.repairShield > 0)) car.condition = Math.max(20, car.condition - 8 * dt);
   }
-  const ny = car.y + dy;
-  if (city.inBounds(car.x, ny) && !city.hitsBuilding(car.x, ny, r) && !city.isWater(car.x, ny)) {
-    car.y = ny;
-  } else {
-    car.speed *= 0.55;
-    hit = true;
+  car.x = fixed.x;
+  car.y = fixed.y;
+  if (Math.abs(car.speed) > 200 && turn !== 0) {
+    car.skid.push({ x: car.x, y: car.y, a: car.angle, life: 1 });
+    if (car.skid.length > 40) car.skid.shift();
   }
-  if (Math.abs(turn) > 0 && Math.abs(car.speed) > 120) car.skid = 0.25;
-  else car.skid = Math.max(0, car.skid - dt);
-  return hit;
+  for (const s of car.skid) s.life -= dt * 0.4;
+  car.skid = car.skid.filter((s) => s.life > 0);
 }
 
-// Push overlapping cars apart through collision-checked movement.
-// No per-frame speed damping here: damping grounded cars to a dead stop.
-export function separateCars(cars, city) {
+// Building-aware separation: push overlapping cars apart along the line
+// between them, then snap any car that ended up inside a building to the
+// nearest open spot. No speed damping here.
+export function separateCars(cars, world, rng) {
   for (let i = 0; i < cars.length; i++) {
     for (let j = i + 1; j < cars.length; j++) {
       const a = cars[i];
       const b = cars[j];
-      let dx = b.x - a.x;
-      let dy = b.y - a.y;
-      let dist = Math.hypot(dx, dy);
-      const minD = (Math.max(a.w, a.h) + Math.max(b.w, b.h)) / 2 - 6;
-      if (dist >= minD) continue;
-      if (dist < 0.01) {
-        // two cars on the exact same point: push along a fixed axis
-        dx = 1; dy = 0; dist = 1;
-      }
-      const ux = dx / dist;
-      const uy = dy / dist;
-      const push = (minD - dist) / 2 + 1;
-      const ax = a.x - ux * push;
-      const ay = a.y - uy * push;
-      const bx = b.x + ux * push;
-      const by = b.y + uy * push;
-      const r = 20;
-      if (city.inBounds(ax, ay) && !city.hitsBuilding(ax, ay, r) && !city.isWater(ax, ay)) {
-        a.x = ax; a.y = ay;
-      }
-      if (city.inBounds(bx, by) && !city.hitsBuilding(bx, by, r) && !city.isWater(bx, by)) {
-        b.x = bx; b.y = by;
+      if (a.parked && b.parked) continue;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const d = Math.hypot(dx, dy);
+      const min = (a.len + b.len) * 0.38;
+      if (d > 0.01 && d < min) {
+        const push = (min - d) / 2;
+        const ux = dx / d;
+        const uy = dy / d;
+        if (!a.parked) { a.x -= ux * push; a.y -= uy * push; }
+        if (!b.parked) { b.x += ux * push; b.y += uy * push; }
+        // a shove must never teleport a car into a building: move it back
+        // through collision-checked steps instead
+        if (!a.parked && pointInBuilding(world, a.x, a.y)) {
+          const s = findOpenSpot(world, rng, a.x, a.y, 90);
+          a.x = s.x; a.y = s.y;
+        }
+        if (!b.parked && pointInBuilding(world, b.x, b.y)) {
+          const s = findOpenSpot(world, rng, b.x, b.y, 90);
+          b.x = s.x; b.y = s.y;
+        }
       }
     }
   }
 }
 
-export function makePedestrian(rng, city) {
-  // pedestrians walk on sidewalks beside roads
-  const onAvenue = rng.chance(0.5);
-  let x, y;
-  if (onAvenue) {
-    x = rng.pick(city.avenues) + rng.pick([-58, 58]);
-    y = rng.range(80, city.height - 80);
+// --- traffic ----------------------------------------------------------------
+export function makeTrafficCar(world, rng) {
+  // spawn on a random avenue/street, away from the marina strip
+  const vertical = rng.chance(0.5);
+  let x, y, angle;
+  if (vertical) {
+    x = rng.pick(AVENUES.filter((a) => a < 2240));
+    y = rng.range(120, WORLD_H - 120);
+    angle = rng.chance(0.5) ? Math.PI / 2 : -Math.PI / 2;
   } else {
-    x = rng.range(80, city.width - 80);
-    y = rng.pick(city.streets) + rng.pick([-58, 58]);
+    x = rng.range(120, WORLD_W - 400);
+    y = rng.pick(STREETS);
+    angle = rng.chance(0.5) ? 0 : Math.PI;
   }
-  if (city.hitsBuilding(x, y, 12) || city.isWater(x, y)) {
-    const s = city.findOpenSpot(x, y);
-    x = s.x; y = s.y;
+  const type = rng.pick(['car', 'car', 'car', 'taxi', 'truck', 'bike']);
+  const color = rng.pick(['#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#f39c12', '#ecf0f1', '#1abc9c']);
+  const car = makeCar(x, y, angle, type, type === 'taxi' ? '#f7c948' : color);
+  car.route = randomRoute(world, rng, x, y);
+  car.routeIdx = 0;
+  return car;
+}
+
+function randomRoute(world, rng, x, y) {
+  const pts = [];
+  let cx = x;
+  let cy = y;
+  for (let i = 0; i < 6; i++) {
+    if (rng.chance(0.5)) {
+      cx = rng.pick(AVENUES.filter((a) => a < 2240));
+    } else {
+      cy = rng.pick(STREETS);
+    }
+    pts.push({ x: cx, y: cy });
+  }
+  return pts;
+}
+
+export function stepTraffic(car, dt, world, rng, others) {
+  if (!car.route || car.routeIdx >= car.route.length) {
+    car.route = randomRoute(world, rng, car.x, car.y);
+    car.routeIdx = 0;
+  }
+  const wp = car.route[car.routeIdx];
+  const d = dist(car.x, car.y, wp.x, wp.y);
+  if (d < 40) {
+    car.routeIdx++;
+    return;
+  }
+  // stop if another car is right ahead
+  for (const o of others) {
+    if (o === car || o.parked) continue;
+    const ahead = (o.x - car.x) * Math.cos(car.angle) + (o.y - car.y) * Math.sin(car.angle);
+    const side = Math.abs((o.x - car.x) * -Math.sin(car.angle) + (o.y - car.y) * Math.cos(car.angle));
+    if (ahead > 0 && ahead < 70 && side < 30) {
+      car.speed *= Math.pow(0.05, dt);
+      return;
+    }
+  }
+  const desired = Math.atan2(wp.y - car.y, wp.x - car.x);
+  const diff = normAngle(desired - car.angle);
+  const keys = new Set(['w']);
+  if (diff > 0.25) keys.add('d');
+  else if (diff < -0.25) keys.add('a');
+  stepCarPhysics(car, keys, dt, world);
+  // traffic stays slow and never enters the marina strip
+  if (car.speed > 150) car.speed = 150;
+  if (car.x > 2260) car.x = 2260;
+}
+
+// --- pedestrians ------------------------------------------------------------
+export function makePedestrian(world, rng) {
+  let x, y;
+  for (let i = 0; i < 20; i++) {
+    const vertical = rng.chance(0.5);
+    if (vertical) {
+      x = rng.pick(AVENUES) + rng.pick([-1, 1]) * (ROAD_HALF + 12);
+      y = rng.range(100, WORLD_H - 100);
+    } else {
+      x = rng.range(100, WORLD_W - 300);
+      y = rng.pick(STREETS) + rng.pick([-1, 1]) * (ROAD_HALF + 12);
+    }
+    if (!pointInBuilding(world, x, y) && !isWater(x, y)) break;
   }
   return {
-    x, y, angle: rng.range(0, Math.PI * 2), speed: rng.range(28, 52),
-    color: rng.pick(['#e8e8e8', '#ffd23e', '#3ec6ff', '#ff9f1c', '#c77dff', '#7dff5e']),
-    fleeX: 0, fleeY: 0, fleeing: false, taxi: false, wait: rng.range(0, 4),
+    x, y, angle: rng.next() * Math.PI * 2, speed: rng.range(38, 68),
+    color: rng.pick(['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#ecf0f1', '#1abc9c', '#ff8fb2']),
+    flee: null, fleeT: 0, isTaxi: false, target: null,
   };
 }
 
-export function stepPedestrian(p, dt, city, danger) {
-  // danger: {x, y} or null. A fleeing ped keeps its current flee direction
-  // when danger is gone (never read a null danger).
-  if (danger) {
-    const d = Math.hypot(p.x - danger.x, p.y - danger.y);
-    if (d < 180) {
-      p.fleeing = true;
-      const a = Math.atan2(p.y - danger.y, p.x - danger.x);
-      p.fleeX = Math.cos(a);
-      p.fleeY = Math.sin(a);
-    }
+export function stepPedestrian(p, dt, world, rng, danger) {
+  // danger: {x, y} gunfire/crash to flee from, or null
+  if (danger && dist(p.x, p.y, danger.x, danger.y) < 260) {
+    const a = Math.atan2(p.y - danger.y, p.x - danger.x);
+    p.flee = a;
+    p.fleeT = 1.2;
   }
-  if (p.fleeing) {
-    const nx = p.x + p.fleeX * 95 * dt;
-    const ny = p.y + p.fleeY * 95 * dt;
-    if (city.inBounds(nx, ny) && !city.hitsBuilding(nx, ny, 10) && !city.isWater(nx, ny)) {
-      p.x = nx; p.y = ny;
-    } else {
-      p.fleeX = -p.fleeX; p.fleeY = -p.fleeY;
-    }
-    if (!danger) p.fleeing = false;
+  let angle = p.angle;
+  let speed = p.speed;
+  if (p.fleeT > 0 && p.flee !== null) {
+    angle = p.flee;
+    speed = 130;
+    p.fleeT -= dt;
+  } else if (rng.chance(dt * 0.25)) {
+    // amble to a nearby sidewalk point
+    angle = rng.next() * Math.PI * 2;
+  }
+  p.angle = angle;
+  const nx = p.x + Math.cos(angle) * speed * dt;
+  const ny = p.y + Math.sin(angle) * speed * dt;
+  if (!pointInBuilding(world, nx, ny) && !isWater(nx, ny) && nx > 30 && nx < WORLD_W - 30 && ny > 30 && ny < WORLD_H - 30) {
+    p.x = nx;
+    p.y = ny;
+  } else {
+    p.angle = angle + Math.PI / 2;
+  }
+  if (!onRoad(p.x, p.y)) {
+    // drift back toward the nearest road so peds stay visible on sidewalks
+    const ax = AVENUES.reduce((a, b) => (Math.abs(b - p.x) < Math.abs(a - p.x) ? b : a));
+    const sy = STREETS.reduce((a, b) => (Math.abs(b - p.y) < Math.abs(a - p.y) ? b : a));
+    if (Math.abs(ax - p.x) < Math.abs(sy - p.y)) p.angle = Math.atan2(0, ax - p.x);
+    else p.angle = Math.atan2(sy - p.y, 0);
+  }
+}
+
+// --- police -----------------------------------------------------------------
+export function makePatrolCar(world, rng, px, py) {
+  const a = rng.next() * Math.PI * 2;
+  const r = rng.range(280, 380);
+  const x = clamp(px + Math.cos(a) * r, 80, WORLD_W - 350);
+  const y = clamp(py + Math.sin(a) * r, 80, WORLD_H - 80);
+  const car = makeCar(x, y, Math.atan2(py - y, px - x), 'police', '#ffffff');
+  car.unit = rng.pick(['GULL-1', 'TIDE-3', 'PELICAN-2', 'CORAL-48', 'REEF-7', 'SURF-9']);
+  car.role = 'PURSUE';
+  car.ramT = 0;
+  return car;
+}
+
+export function stepPatrol(car, dt, world, px, py, rng) {
+  if (car.role === 'FORMATION') {
+    // staged screenshot formation: drive straight ahead, keep the spread —
+    // normal pursuit steering would converge all four onto the player's
+    // lane, where the mission card hides them.
+    stepCarPhysics(car, new Set(['w']), dt, world);
+    if (car.speed > 330) car.speed = 330;
     return;
   }
-  p.wait -= dt;
-  if (p.wait > 0) return;
-  const nx = p.x + Math.cos(p.angle) * p.speed * dt;
-  const ny = p.y + Math.sin(p.angle) * p.speed * dt;
-  if (city.inBounds(nx, ny) && !city.hitsBuilding(nx, ny, 10) && !city.isWater(nx, ny) && city.onRoad(nx, ny) === false) {
-    p.x = nx; p.y = ny;
+  const desired = Math.atan2(py - car.y, px - car.x);
+  const diff = normAngle(desired - car.angle);
+  const keys = new Set(['w']);
+  if (diff > 0.2) keys.add('d');
+  else if (diff < -0.2) keys.add('a');
+  // ram: when close and roughly aligned, surge
+  const d = dist(car.x, car.y, px, py);
+  if (d < 120 && Math.abs(diff) < 0.5) car.speed = Math.min(car.speed + 260 * dt, 330);
+  stepCarPhysics(car, keys, dt, world);
+  if (car.speed > 330) car.speed = 330;
+}
+
+export function makeFootCop(world, rng, px, py) {
+  const a = rng.next() * Math.PI * 2;
+  // spawn farther out and slower than the player can reach a car: the
+  // chase must give the player a fair window to get into a getaway car
+  // after grabbing the cash, not a near-certain bust in 2 seconds.
+  const r = rng.range(380, 480);
+  const x = clamp(px + Math.cos(a) * r, 80, WORLD_W - 350);
+  const y = clamp(py + Math.sin(a) * r, 80, WORLD_H - 80);
+  return { x, y, angle: 0, speed: 175, hp: 3, grace: 6, contact: 0, unit: 'FOOT', flash: 0 };
+}
+
+export function stepFootCop(cop, dt, world, px, py, onFoot) {
+  if (cop.grace > 0) cop.grace -= dt;
+  const desired = Math.atan2(py - cop.y, px - cop.x);
+  cop.angle = desired;
+  const fixed = collideCircle(world, cop.x + Math.cos(desired) * cop.speed * dt, cop.y + Math.sin(desired) * cop.speed * dt, 12);
+  cop.x = fixed.x;
+  cop.y = fixed.y;
+  const d = dist(cop.x, cop.y, px, py);
+  if (onFoot && cop.grace <= 0 && d < 26) {
+    cop.contact += dt;
   } else {
-    p.angle = Math.atan2(-Math.sin(p.angle), -Math.cos(p.angle)) + (Math.random() - 0.5);
-    p.wait = 0.5 + Math.random() * 1.5;
+    cop.contact = 0;
   }
-  if (Math.random() < dt * 0.1) p.angle += (Math.random() - 0.5) * 1.2;
+  return cop.contact >= 1.2;
 }
 
-export function makeFootCop(x, y) {
-  return { x, y, hp: 3, speed: 185, grace: 3, bustTime: 0, angle: 0 };
+// --- helicopter ---------------------------------------------------------------
+export function makeHelicopter(px, py) {
+  return { x: px - 160, y: py - 200, angle: 0, rotor: 0, shadowX: px, shadowY: py };
 }
 
-export function makeEnemy(x, y, kind) {
-  return { x, y, hp: 3, kind: kind || 'gang', fireAt: 1 + Math.random(), angle: 0, speed: 42 };
-}
-
-export function makePickup(x, y, kind) {
-  return { x, y, kind, respawnAt: 0, taken: false };
-}
-
-export function makeHelicopter(x, y) {
-  return { x, y, angle: 0, rotor: 0 };
-}
-
-// Segment-based bullet hit test: a fast bullet must not tunnel past a
-// target between frames. Returns the hit fraction along the segment, or -1.
-export function segmentHitsCircle(x0, y0, x1, y1, cx, cy, r) {
-  const dx = x1 - x0;
-  const dy = y1 - y0;
-  const len2 = dx * dx + dy * dy;
-  let t = 0;
-  if (len2 > 0) t = Math.max(0, Math.min(1, ((cx - x0) * dx + (cy - y0) * dy) / len2));
-  const px = x0 + dx * t;
-  const py = y0 + dy * t;
-  const d = Math.hypot(cx - px, cy - py);
-  return d <= r ? t : -1;
-}
-
-export function lineOfSight(city, x0, y0, x1, y1) {
-  // sample the segment; blocked if any sample point is inside a building
-  const steps = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 24);
-  for (let i = 1; i < steps; i++) {
-    const t = i / steps;
-    if (city.hitsBuilding(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, 2)) return false;
-  }
-  return true;
+export function stepHelicopter(h, dt, px, py) {
+  // hover to the RIGHT of the player, slightly up: the old up-left hover
+  // sat directly behind the mission card and was invisible in screenshots.
+  // +120 keeps it clear of the right HUD panel too (screen x ~916).
+  const tx = px + 120;
+  const ty = py - 60;
+  h.x += (tx - h.x) * Math.min(1, dt * 2.5);
+  h.y += (ty - h.y) * Math.min(1, dt * 2.5);
+  h.rotor += dt * 30;
+  h.shadowX = h.x + 40;
+  h.shadowY = h.y + 90;
 }
